@@ -135,6 +135,13 @@ const MealPlanPage: React.FC = () => {
     return { calories: cal, protein: p, carbs: c, fat: f };
   }, [meals]);
 
+  // 计算目标克数
+  const targets = useMemo(() => ({
+    protein: (MOCK_USER.targetCalories * MOCK_USER.targetMacros.protein) / 4,
+    carbs: (MOCK_USER.targetCalories * MOCK_USER.targetMacros.carbs) / 4,
+    fat: (MOCK_USER.targetCalories * MOCK_USER.targetMacros.fat) / 9,
+  }), []);
+
   const handleReplace = (mealId: string, dishId: string, newDish: Dish) => {
     setIsReplacing(true);
     setTimeout(() => {
@@ -184,31 +191,33 @@ const MealPlanPage: React.FC = () => {
 
       <main className="flex-1 px-6 pt-6 pb-40 space-y-8">
         {/* 总览卡片 */}
-        <section className="p-6 bg-emerald-500 rounded-[40px] text-white shadow-xl shadow-emerald-500/20">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <p className="text-white/70 text-xs font-bold uppercase tracking-wider mb-1">今日预估达成</p>
-              <div className="flex items-baseline gap-2">
-                <motion.span 
-                  key={totals.calories}
-                  initial={{ scale: 0.8 }} animate={{ scale: 1 }}
-                  className="text-5xl font-black"
-                >
-                  {totals.calories}
-                </motion.span>
-                <span className="text-lg font-bold opacity-80">kcal</span>
+        <section className="overflow-hidden bg-white dark:bg-slate-900 rounded-[40px] shadow-xl shadow-emerald-500/5 border border-emerald-100/50 dark:border-slate-800">
+          <div className="p-8 bg-emerald-500 text-white">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-white/70 text-xs font-bold uppercase tracking-wider mb-1">今日预估达成</p>
+                <div className="flex items-baseline gap-2">
+                  <motion.span 
+                    key={totals.calories}
+                    initial={{ scale: 0.8 }} animate={{ scale: 1 }}
+                    className="text-5xl font-black"
+                  >
+                    {totals.calories}
+                  </motion.span>
+                  <span className="text-lg font-bold opacity-80">/ {MOCK_USER.targetCalories} kcal</span>
+                </div>
               </div>
-            </div>
-            <div className="p-4 bg-white/20 backdrop-blur rounded-3xl border border-white/30">
-              <Sparkles className="w-6 h-6" />
+              <div className="p-4 bg-white/20 backdrop-blur rounded-3xl border border-white/30">
+                <Sparkles className="w-6 h-6" />
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 pt-6 border-t border-white/20">
-            <MacroMini label="蛋白质" value={`${totals.protein}g`} percent={Math.round((totals.protein * 4 / totals.calories) * 100)} color="bg-white" />
-            <MacroMini label="碳水" value={`${totals.carbs}g`} percent={Math.round((totals.carbs * 4 / totals.calories) * 100)} color="bg-white/70" />
-            <MacroMini label="脂肪" value={`${totals.fat}g`} percent={Math.round((totals.fat * 9 / totals.calories) * 100)} color="bg-white/40" />
-          </div>
+          <div className="p-8 space-y-6">
+             <MacroOverview label="蛋白质" current={totals.protein} target={targets.protein} colorClass="text-emerald-600 dark:text-emerald-400" barColor="bg-emerald-500" />
+             <MacroOverview label="碳水化合物" current={totals.carbs} target={targets.carbs} colorClass="text-amber-600 dark:text-amber-400" barColor="bg-amber-500" />
+             <MacroOverview label="脂肪" current={totals.fat} target={targets.fat} colorClass="text-rose-600 dark:text-rose-400" barColor="bg-rose-500" />
+           </div>
         </section>
 
         {/* 餐次列表 */}
@@ -353,22 +362,44 @@ const MealPlanPage: React.FC = () => {
 };
 
 // --- 子组件 ---
-const MacroMini: React.FC<{ label: string, value: string, percent: number, color: string }> = ({ label, value, percent, color }) => (
-  <div className="space-y-1.5">
-    <div className="flex justify-between items-end">
-      <span className="text-[10px] font-black text-white/60 uppercase tracking-tighter">{label}</span>
-      <span className="text-[10px] font-black">{percent}%</span>
+const MacroOverview: React.FC<{ 
+  label: string, 
+  current: number, 
+  target: number, 
+  colorClass: string,
+  barColor: string
+}> = ({ label, current, target, colorClass, barColor }) => {
+  const percent = Math.min(Math.round((current / target) * 100), 100);
+  const roundedCurrent = Math.round(current);
+  const roundedTarget = Math.round(target);
+
+  return (
+    <div className="w-full space-y-2.5">
+      <div className="flex items-baseline justify-between w-full">
+        <div className="flex items-baseline gap-2">
+          <span className={`text-sm font-black uppercase tracking-wider ${colorClass}`}>{label}</span>
+          <div className="flex items-baseline text-slate-400 dark:text-slate-500">
+            <span className="text-sm font-bold tabular-nums text-slate-700 dark:text-slate-200">{roundedCurrent}</span>
+            <span className="text-[10px] font-medium mx-0.5">/</span>
+            <span className="text-[10px] font-medium tracking-tight">{roundedTarget}g</span>
+          </div>
+        </div>
+        <div className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${barColor.replace('bg-', 'bg-').replace('-500', '-500/10')} ${colorClass.replace('text-', 'text-')}`}>
+          {percent}%
+        </div>
+      </div>
+      
+      <div className="relative w-full h-3 bg-slate-100 dark:bg-slate-800/50 rounded-full overflow-hidden">
+        <motion.div 
+          initial={{ width: 0 }}
+          animate={{ width: `${percent}%` }}
+          transition={{ duration: 1, ease: "easeOut" }}
+          className={`absolute inset-y-0 left-0 rounded-full ${barColor} shadow-[0_0_12px_-2px_rgba(0,0,0,0.1)]`}
+        />
+      </div>
     </div>
-    <div className="text-sm font-black mb-1">{value}</div>
-    <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
-      <motion.div 
-        initial={{ width: 0 }}
-        animate={{ width: `${percent}%` }}
-        className={`h-full ${color}`} 
-      />
-    </div>
-  </div>
-);
+  );
+};
 
 // --- Fake Progressive Loading ---
 const FakeReplacementLoading: React.FC<{ onCancel: () => void }> = ({ onCancel }) => {
