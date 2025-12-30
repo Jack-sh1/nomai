@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   ChevronLeft, 
   User, 
@@ -9,10 +11,13 @@ import {
   Info,
   Check,
   RotateCcw,
-  Flame
+  Flame,
+  Scale,
+  ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
+import WeightInput from '../components/WeightInput';
+import UserMenu from '../components/UserMenu';
 
 // --- Types ---
 type Gender = 'male' | 'female' | 'other';
@@ -148,9 +153,11 @@ const MultiSelectTags: React.FC<{
 
 const SettingsPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user, checkOnboardingStatus } = useAuth();
   const [showToast, setShowToast] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Initial Mock State
+  // Initial State (can be fetched from Supabase in useEffect)
   const [profile, setProfile] = useState<UserProfile>({
     gender: 'male',
     age: 28,
@@ -162,6 +169,102 @@ const SettingsPage: React.FC = () => {
     allergies: [],
     manualCalorieTarget: null,
   });
+
+  // Fetch initial profile if exists
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchProfile = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      if (data && !error) {
+        setProfile({
+          gender: data.gender || 'male',
+          age: data.age || 28,
+          height: data.height || 175,
+          weight: data.weight || 70,
+          goal: data.goal || 'lose',
+          activity: data.activity || 'moderate',
+          dietPreferences: data.diet_preferences || [],
+          allergies: data.allergies || [],
+          manualCalorieTarget: data.manual_calorie_target || null,
+        });
+      }
+    };
+
+    fetchProfile();
+  }, [user]);
+
+  const handleSave = async () => {
+    if (!user) {
+      console.error('[Settings] No user session found during save');
+      return;
+    }
+    
+    setIsSaving(true);
+    // 1. 构造完整 Payload，确保包含 is_onboarded: true
+    const payload = {
+      id: user.id,
+      gender: profile.gender,
+      age: profile.age,
+      height: profile.height,
+      weight: profile.weight,
+      goal: profile.goal,
+      activity: profile.activity,
+      diet_preferences: profile.dietPreferences,
+      allergies: profile.allergies,
+      is_onboarded: true, // 核心：必须显式设为 true
+      updated_at: new Date().toISOString(),
+    };
+
+    console.log('[Settings] 🚀 Starting save profile...', { uid: user.id, payload });
+
+    try {
+      // 2. 使用 upsert 确保记录存在即更新，不存在即插入
+      const { data, error, status } = await supabase
+        .from('profiles')
+        .upsert(payload, { onConflict: 'id' })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[Settings] ❌ Upsert Error:', { code: error.code, message: error.message, details: error.details });
+        throw error;
+      }
+
+      console.log('[Settings] ✅ Save response success:', { status, data });
+
+      // 3. 强制刷新 AuthContext 中的 onboarding 状态
+      // 这里传递 user 确保 checkOnboardingStatus 内部不会因为异步 session 延迟而拿到 null
+      console.log('[Settings] 🔄 Refreshing global onboarding status...');
+      const isNowOnboarded = await checkOnboardingStatus(user);
+      
+      if (!isNowOnboarded) {
+        console.warn('[Settings] ⚠️ checkOnboardingStatus returned false after successful save! Retrying in 500ms...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await checkOnboardingStatus(user);
+      }
+
+      setShowToast(true);
+      
+      // 4. 延迟跳转：给数据库副本同步和状态更新留出一点点喘息时间（500ms）
+      setTimeout(() => {
+        setShowToast(false);
+        console.log('[Settings] 🏁 Navigating to dashboard...');
+        navigate('/dashboard', { replace: true });
+      }, 800);
+
+    } catch (err: any) {
+      console.error('[Settings] 💥 Critical Save Error:', err);
+      alert(`保存资料失败: ${err.message || '网络异常'}\n请检查是否已运行 profiles 表的 SQL 修复脚本。`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Calculate Recommendation
   const recommendedCalories = useMemo(() => {
@@ -181,14 +284,6 @@ const SettingsPage: React.FC = () => {
     return Math.round(tdee);
   }, [profile]);
 
-  const handleSave = () => {
-    setShowToast(true);
-    setTimeout(() => {
-      setShowToast(false);
-      navigate('/');
-    }, 2000);
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-black pb-32">
       {/* Header */}
@@ -199,10 +294,11 @@ const SettingsPage: React.FC = () => {
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
-        <div>
+        <div className="flex-1">
           <h1 className="text-xl font-black text-slate-900 dark:text-white">完善你的资料</h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">让 AI 为你定制精准的减脂/增肌方案</p>
         </div>
+        <UserMenu />
       </header>
 
       <main className="max-w-md mx-auto px-4 mt-4 space-y-4">
@@ -235,14 +331,13 @@ const SettingsPage: React.FC = () => {
               max={250}
               onChange={(val) => setProfile({ ...profile, height: val })}
             />
-            <NumberInput
-              label="体重"
-              value={profile.weight}
-              unit="kg"
-              min={30}
-              max={200}
-              onChange={(val) => setProfile({ ...profile, weight: val })}
-            />
+            <div className="pt-2">
+              <label className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-2 ml-1">体重</label>
+              <WeightInput
+                value={profile.weight}
+                onChange={(val) => setProfile({ ...profile, weight: val })}
+              />
+            </div>
           </div>
         </SectionCard>
 
@@ -375,10 +470,11 @@ const SettingsPage: React.FC = () => {
         <div className="max-w-md mx-auto flex flex-col gap-3">
           <button
             onClick={handleSave}
-            className="w-full py-5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-3xl font-black text-lg shadow-lg shadow-emerald-500/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            disabled={isSaving}
+            className={`w-full py-5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-3xl font-black text-lg shadow-lg shadow-emerald-500/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
-            保存并使用
-            <Check className="w-5 h-5" />
+            {isSaving ? '正在保存...' : '保存并使用'}
+            {!isSaving && <Check className="w-5 h-5" />}
           </button>
           <button 
             onClick={() => navigate(-1)}

@@ -10,6 +10,7 @@ import {
   Plus
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import UserMenu from '../components/UserMenu';
 
 /**
  * 首页核心目的：一眼看清「今日还能吃多少」，通过视觉压力（剩余热量）引导用户记录行为。
@@ -50,12 +51,7 @@ const DashboardPage: React.FC = () => {
             {getTimeGreeting()}，<span className="text-emerald-500">NomAi</span>
           </h1>
         </div>
-        <button 
-          onClick={() => navigate('/settings')}
-          className="p-2 bg-slate-100 dark:bg-slate-900 rounded-2xl active:scale-90 transition-all"
-        >
-          <User className="w-6 h-6 text-slate-600 dark:text-slate-300" />
-        </button>
+        <UserMenu />
       </header>
 
       <main className="flex-1 px-6 pb-32 space-y-8">

@@ -1,7 +1,5 @@
-import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { supabase } from './lib/supabase';
-import type { Session } from '@supabase/supabase-js';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 import AuthPage from './pages/AuthPage';
 import ScanResultPage from './pages/ScanResultPage';
@@ -11,25 +9,12 @@ import CameraScanPage from './pages/CameraScanPage';
 import SettingsPage from './pages/SettingsPage';
 import TrendDetailPage from './pages/TrendDetailPage';
 
-function App() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // 1. 获取当前会话
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    // 2. 监听 Auth 状态变化
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+// 路由保护组件
+const ProtectedRoute: React.FC<{ children: React.ReactNode; requireOnboarding?: boolean }> = ({ 
+  children, 
+  requireOnboarding = true 
+}) => {
+  const { session, loading, isOnboarded } = useAuth();
 
   if (loading) {
     return (
@@ -39,47 +24,62 @@ function App() {
     );
   }
 
+  // 1. 未登录 -> 跳 /auth
+  if (!session) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // 2. 已登录但未完成 onboarding -> 跳 /settings (除非当前就在 /settings)
+  if (requireOnboarding && !isOnboarded) {
+    return <Navigate to="/settings" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+function AppRoutes() {
+  const { session, isOnboarded } = useAuth();
+
+  return (
+    <Routes>
+      {/* 公开/半公开路由 */}
+      <Route 
+        path="/auth" 
+        element={!session ? <AuthPage /> : <Navigate to={isOnboarded ? "/dashboard" : "/settings"} replace />} 
+      />
+
+      {/* 强制引导路由 (登录即可访问) */}
+      <Route 
+        path="/settings" 
+        element={
+          <ProtectedRoute requireOnboarding={false}>
+            <SettingsPage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* 完全保护路由 (登录且完成 onboarding) */}
+      <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+      <Route path="/scan-result" element={<ProtectedRoute><ScanResultPage /></ProtectedRoute>} />
+      <Route path="/meal-plan" element={<ProtectedRoute><MealPlanPage /></ProtectedRoute>} />
+      <Route path="/camera-scan" element={<ProtectedRoute><CameraScanPage /></ProtectedRoute>} />
+      <Route path="/trend" element={<ProtectedRoute><TrendDetailPage /></ProtectedRoute>} />
+
+      {/* 默认路由 */}
+      <Route 
+        path="/" 
+        element={<Navigate to={session ? (isOnboarded ? "/dashboard" : "/settings") : "/auth"} replace />} 
+      />
+    </Routes>
+  );
+}
+
+function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* 公共路由 */}
-        <Route 
-          path="/auth" 
-          element={!session ? <AuthPage /> : <Navigate to="/dashboard" replace />} 
-        />
-
-        {/* 受保护路由 */}
-        <Route 
-          path="/dashboard" 
-          element={session ? <DashboardPage /> : <Navigate to="/auth" replace />} 
-        />
-        <Route 
-          path="/scan-result" 
-          element={session ? <ScanResultPage /> : <Navigate to="/auth" replace />} 
-        />
-        <Route 
-          path="/meal-plan" 
-          element={session ? <MealPlanPage /> : <Navigate to="/auth" replace />} 
-        />
-        <Route 
-          path="/camera-scan" 
-          element={session ? <CameraScanPage /> : <Navigate to="/auth" replace />} 
-        />
-        <Route 
-          path="/settings" 
-          element={session ? <SettingsPage /> : <Navigate to="/auth" replace />} 
-        />
-        <Route 
-          path="/trend" 
-          element={session ? <TrendDetailPage /> : <Navigate to="/auth" replace />} 
-        />
-
-        {/* 默认路由 */}
-        <Route 
-          path="/" 
-          element={<Navigate to={session ? "/dashboard" : "/auth"} replace />} 
-        />
-      </Routes>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
     </BrowserRouter>
   );
 }
