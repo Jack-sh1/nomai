@@ -50,7 +50,10 @@ const DashboardPage: React.FC = () => {
             {getTimeGreeting()}，<span className="text-emerald-500">NomAi</span>
           </h1>
         </div>
-        <button className="p-2 bg-slate-100 dark:bg-slate-900 rounded-2xl active:scale-90 transition-all">
+        <button 
+          onClick={() => navigate('/settings')}
+          className="p-2 bg-slate-100 dark:bg-slate-900 rounded-2xl active:scale-90 transition-all"
+        >
           <User className="w-6 h-6 text-slate-600 dark:text-slate-300" />
         </button>
       </header>
@@ -76,8 +79,8 @@ const DashboardPage: React.FC = () => {
                   className="stroke-emerald-500 fill-none"
                   strokeWidth="12"
                   strokeLinecap="round"
-                  initial={{ strokeDasharray: "553", strokeDashoffset: "553" }}
-                  animate={{ strokeDashoffset: 553 - (553 * progress) / 100 }}
+                  initial={{ pathLength: 0 }}
+                  animate={{ pathLength: progress / 100 }}
                   transition={{ duration: 1.5, ease: "easeOut" }}
                 />
               </svg>
@@ -117,7 +120,10 @@ const DashboardPage: React.FC = () => {
               <TrendingUp className="w-5 h-5 text-emerald-500" />
               最近趋势
             </h3>
-            <button className="text-emerald-600 dark:text-emerald-400 text-sm font-bold flex items-center">
+            <button 
+              onClick={() => navigate('/trend')}
+              className="text-emerald-600 dark:text-emerald-400 text-sm font-bold flex items-center"
+            >
               查看详情 <ChevronRight className="w-4 h-4" />
             </button>
           </div>
