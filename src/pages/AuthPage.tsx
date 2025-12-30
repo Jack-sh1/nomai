@@ -1,227 +1,239 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { 
   Mail, 
-  Lock, 
   ArrowRight, 
   Loader2, 
   AlertCircle,
-  Chrome,
-  Leaf
+  CheckCircle2,
+  Sparkles,
+  RefreshCcw,
+  ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type AuthMode = 'login' | 'register';
+/**
+ * 错误文案本地化映射
+ */
+const ERROR_MAP: Record<string, string> = {
+  'Invalid login credentials': '邮箱格式不正确或链接已失效',
+  'User already registered': '该邮箱已注册，请直接使用 Magic Link 登录',
+  'Email rate limit exceeded': '发送太频繁了，请稍等 60 秒再试',
+  'Database error saving new user': '系统繁忙，请稍后再试',
+  'default': '操作失败，请检查网络或联系支持'
+};
+
+const getFriendlyError = (message?: string) => {
+  if (!message) return ERROR_MAP.default;
+  for (const key in ERROR_MAP) {
+    if (message.includes(key)) return ERROR_MAP[key];
+  }
+  return ERROR_MAP.default;
+};
 
 const AuthPage: React.FC = () => {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<AuthMode>('login');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   
+  // 状态管理
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
-  const validateForm = () => {
-    if (!email.includes('@')) return '请输入有效的邮箱地址';
-    if (password.length < 6) return '密码长度至少为 6 位';
-    if (mode === 'register' && password !== confirmPassword) return '两次输入的密码不一致';
-    return null;
-  };
+  // 1. 处理倒计时
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (countdown > 0) {
+      timer = setInterval(() => setCountdown(prev => prev - 1), 1000);
+    }
+    return () => clearInterval(timer);
+  }, [countdown]);
 
-  const handleAuth = async (e: React.FormEvent) => {
+  // 2. 核心：监听 Auth 状态并处理 Onboarding 逻辑
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        setLoading(true);
+        try {
+          // 查询用户的 profiles 信息
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('is_onboarded')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profileError || !profile?.is_onboarded) {
+            // 如果没有 profile 或者未完成 onboarding，强制跳转到 settings
+            navigate('/settings');
+          } else {
+            // 已完成用户跳转到 dashboard
+            navigate('/dashboard');
+          }
+        } catch (err) {
+          // 容错处理：即使 profile 查询失败也跳转到 settings 以防万一
+          navigate('/settings');
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  // 3. 发送 Magic Link
+  const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+    if (!email.includes('@')) {
+      setError('请输入正确的邮箱地址');
       return;
     }
 
+    setError(null);
     setLoading(true);
+
     try {
-      if (mode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (error) throw error;
-        // 如果开启了邮箱验证，可能需要提示用户检查邮箱
-      }
-      navigate('/dashboard');
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: true, // 自动注册新用户
+          emailRedirectTo: window.location.origin + '/dashboard',
+        }
+      });
+
+      if (error) throw error;
+
+      setSent(true);
+      setCountdown(60);
     } catch (err: any) {
-      setError(err.message || '操作失败，请稍后重试');
+      setError(getFriendlyError(err.message));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleLogin = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/dashboard`
-        }
-      });
-      if (error) throw error;
-    } catch (err: any) {
-      setError(err.message || 'Google 登录失败');
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-emerald-50 dark:bg-slate-950 flex flex-col p-6 transition-colors duration-300">
-      {/* Top Decoration */}
-      <div className="mt-12 mb-8 flex flex-col items-center">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col p-6 transition-colors duration-500">
+      {/* 顶部 Branding */}
+      <div className="mt-16 mb-12 flex flex-col items-center">
         <motion.div 
-          initial={{ scale: 0.8, opacity: 0 }}
+          initial={{ scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="w-20 h-20 bg-emerald-500 rounded-[28px] flex items-center justify-center shadow-xl shadow-emerald-500/20 mb-6"
+          transition={{ type: 'spring', damping: 15 }}
+          className="w-20 h-20 bg-emerald-500 rounded-[28px] flex items-center justify-center shadow-2xl shadow-emerald-500/30 mb-6"
         >
-          <Leaf className="w-10 h-10 text-white" />
+          <Sparkles className="w-10 h-10 text-white" />
         </motion.div>
-        <h1 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">NomAi</h1>
-        <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">
-          {mode === 'login' ? '欢迎回来，开始健康每一天' : '加入我们，开启智能营养之旅'}
-        </p>
+        <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight italic">NomAi</h1>
+        <p className="text-slate-500 dark:text-slate-400 font-medium mt-2">智能营养，丝滑开启</p>
       </div>
 
-      {/* Main Form Card */}
+      {/* 主体卡片 */}
       <motion.div 
         layout
-        className="bg-white dark:bg-slate-900 rounded-[40px] p-8 shadow-xl shadow-emerald-500/5 border border-emerald-100/50 dark:border-slate-800"
+        className="bg-white dark:bg-slate-900 rounded-[40px] p-8 shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800"
       >
-        <form onSubmit={handleAuth} className="space-y-5">
-          {/* Email Field */}
-          <div className="space-y-2">
-            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">邮箱地址</label>
-            <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input 
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="hello@example.com"
-                className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800/50 border border-transparent focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-800 rounded-2xl outline-none transition-all font-medium text-slate-800 dark:text-white"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Password Field */}
-          <div className="space-y-2">
-            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">登录密码</label>
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input 
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800/50 border border-transparent focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-800 rounded-2xl outline-none transition-all font-medium text-slate-800 dark:text-white"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Confirm Password (Register Mode only) */}
-          <AnimatePresence mode="wait">
-            {mode === 'register' && (
-              <motion.div 
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="space-y-2 overflow-hidden"
-              >
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">确认密码</label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+        <AnimatePresence mode="wait">
+          {!sent ? (
+            <motion.form 
+              key="form"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              onSubmit={handleMagicLink} 
+              className="space-y-6"
+            >
+              <div className="space-y-3">
+                <div className="flex justify-between items-center ml-1">
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">邮箱地址</label>
+                  <span className="text-[10px] font-bold text-emerald-500 px-2 py-0.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-full">无密码登录</span>
+                </div>
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-emerald-500 transition-colors" />
                   <input 
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800/50 border border-transparent focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-800 rounded-2xl outline-none transition-all font-medium text-slate-800 dark:text-white"
-                    required={mode === 'register'}
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="yourname@email.com"
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800/50 border-2 border-transparent focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-800 rounded-2xl outline-none transition-all font-bold text-slate-800 dark:text-white placeholder:text-slate-300"
+                    required
                   />
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              </div>
 
-          {/* Error Message */}
-          <AnimatePresence>
-            {error && (
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="flex items-center gap-2 p-4 bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-2xl text-sm font-bold"
+              {/* 错误提示 */}
+              {error && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex items-center gap-2 p-4 bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-2xl text-sm font-bold border border-rose-100 dark:border-rose-500/20"
+                >
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  {error}
+                </motion.div>
+              )}
+
+              <button 
+                type="submit"
+                disabled={loading}
+                className="w-full py-5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 dark:disabled:bg-slate-800 text-white rounded-3xl font-black text-lg shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-3 active:scale-[0.98] transition-all"
               >
-                <AlertCircle className="w-4 h-4" />
-                {error}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Submit Button */}
-          <button 
-            type="submit"
-            disabled={loading}
-            className="w-full py-5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white rounded-3xl font-black text-lg shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-3 active:scale-[0.98] transition-all"
-          >
-            {loading ? (
-              <Loader2 className="w-6 h-6 animate-spin" />
-            ) : (
-              <>
-                {mode === 'login' ? '立即登录' : '创建账号'}
-                <ArrowRight className="w-5 h-5" />
-              </>
-            )}
-          </button>
-        </form>
-
-        {/* Mode Toggle */}
-        <div className="mt-8 text-center">
-          <button 
-            onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-            className="text-slate-500 dark:text-slate-400 text-sm font-bold hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-          >
-            {mode === 'login' ? '还没有账号？ 立即注册' : '已有账号？ 直接登录'}
-          </button>
-        </div>
+                {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : (
+                  <>
+                    发送魔法链接
+                    <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
+              </button>
+            </motion.form>
+          ) : (
+            <motion.div 
+              key="sent"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center py-4"
+            >
+              <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 dark:text-white mb-2">已发送！</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed px-4">
+                请检查您的邮箱 <span className="text-emerald-500 font-bold">{email}</span><br />
+                点击邮件中的链接即可完成登录
+              </p>
+              
+              <div className="mt-8 space-y-4">
+                <button 
+                  onClick={() => countdown === 0 && handleMagicLink({ preventDefault: () => {} } as any)}
+                  disabled={countdown > 0 || loading}
+                  className="flex items-center justify-center gap-2 mx-auto text-sm font-black text-emerald-500 disabled:text-slate-400 transition-colors"
+                >
+                  <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  {countdown > 0 ? `${countdown}秒后可重发` : '没收到？重新发送'}
+                </button>
+                <button 
+                  onClick={() => setSent(false)}
+                  className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  修改邮箱地址
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
 
-      {/* Divider */}
-      <div className="my-8 flex items-center gap-4 px-4">
-        <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
-        <span className="text-xs font-black text-slate-400 uppercase tracking-widest">或者</span>
-        <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
+      {/* 安全提示 */}
+      <div className="mt-8 flex items-center justify-center gap-2 text-slate-400">
+        <ShieldCheck className="w-4 h-4" />
+        <span className="text-[10px] font-black uppercase tracking-widest">Supabase 安全加密</span>
       </div>
 
-      {/* Third Party Login */}
-      <button 
-        onClick={handleGoogleLogin}
-        className="w-full py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl flex items-center justify-center gap-3 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-[0.98]"
-      >
-        <Chrome className="w-5 h-5" />
-        Google 一键登录
-      </button>
-
-      {/* Footer */}
-      <p className="mt-auto py-8 text-center text-[10px] text-slate-400 font-medium leading-relaxed">
-        点击登录即表示您同意我们的 <br />
-        <span className="underline decoration-slate-300 underline-offset-2">服务条款</span> 和 <span className="underline decoration-slate-300 underline-offset-2">隐私政策</span>
+      {/* 底部信息 */}
+      <p className="mt-auto py-8 text-center text-[10px] text-slate-400 font-medium leading-relaxed px-10">
+        如果您是新用户，点击链接后将自动为您创建账号并进入 <span className="text-emerald-500 font-bold">资料完善</span> 流程。
       </p>
     </div>
   );
