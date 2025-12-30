@@ -79,7 +79,15 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Toaster position="top-center" />
+        <Toaster 
+          position="bottom-center" 
+          toastOptions={{
+            duration: 3000,
+            style: {
+              borderRadius: '16px',
+            }
+          }}
+        />
         <AppRoutes />
       </AuthProvider>
     </BrowserRouter>

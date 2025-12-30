@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { showToast as customToast } from '../utils/toast';
 import { 
   ChevronLeft, 
   User, 
@@ -201,12 +202,13 @@ const SettingsPage: React.FC = () => {
 
   const handleSave = async () => {
     if (!user) {
-      console.error('[Settings] No user session found during save');
+      customToast.error('未找到登录状态，请重新登录');
       return;
     }
     
     setIsSaving(true);
-    // 1. 构造完整 Payload，确保包含 is_onboarded: true
+    
+    // 构造 payload
     const payload = {
       id: user.id,
       gender: profile.gender,
@@ -217,53 +219,40 @@ const SettingsPage: React.FC = () => {
       activity: profile.activity,
       diet_preferences: profile.dietPreferences,
       allergies: profile.allergies,
-      is_onboarded: true, // 核心：必须显式设为 true
+      is_onboarded: true,
       updated_at: new Date().toISOString(),
     };
 
-    console.log('[Settings] 🚀 Starting save profile...', { uid: user.id, payload });
+    // 使用 toast.promise 包裹整个异步过程
+    await customToast.promise(
+      (async () => {
+        // 1. 提交到 Supabase
+        const { error } = await supabase
+          .from('profiles')
+          .upsert(payload, { onConflict: 'id' });
 
-    try {
-      // 2. 使用 upsert 确保记录存在即更新，不存在即插入
-      const { data, error, status } = await supabase
-        .from('profiles')
-        .upsert(payload, { onConflict: 'id' })
-        .select()
-        .single();
+        if (error) throw error;
 
-      if (error) {
-        console.error('[Settings] ❌ Upsert Error:', { code: error.code, message: error.message, details: error.details });
-        throw error;
+        // 2. 刷新全局状态
+        const isNowOnboarded = await checkOnboardingStatus(user);
+        if (!isNowOnboarded) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          await checkOnboardingStatus(user);
+        }
+
+        // 3. 跳转
+        setTimeout(() => {
+          navigate('/dashboard', { replace: true });
+        }, 800);
+      })(),
+      {
+        loading: '正在同步云端数据...',
+        success: '个人资料已更新！🚀',
+        error: (err: any) => `更新失败: ${err.message || '网络异常'}`,
       }
+    );
 
-      console.log('[Settings] ✅ Save response success:', { status, data });
-
-      // 3. 强制刷新 AuthContext 中的 onboarding 状态
-      // 这里传递 user 确保 checkOnboardingStatus 内部不会因为异步 session 延迟而拿到 null
-      console.log('[Settings] 🔄 Refreshing global onboarding status...');
-      const isNowOnboarded = await checkOnboardingStatus(user);
-      
-      if (!isNowOnboarded) {
-        console.warn('[Settings] ⚠️ checkOnboardingStatus returned false after successful save! Retrying in 500ms...');
-        await new Promise(resolve => setTimeout(resolve, 500));
-        await checkOnboardingStatus(user);
-      }
-
-      setShowToast(true);
-      
-      // 4. 延迟跳转：给数据库副本同步和状态更新留出一点点喘息时间（500ms）
-      setTimeout(() => {
-        setShowToast(false);
-        console.log('[Settings] 🏁 Navigating to dashboard...');
-        navigate('/dashboard', { replace: true });
-      }, 800);
-
-    } catch (err: any) {
-      console.error('[Settings] 💥 Critical Save Error:', err);
-      alert(`保存资料失败: ${err.message || '网络异常'}\n请检查是否已运行 profiles 表的 SQL 修复脚本。`);
-    } finally {
-      setIsSaving(false);
-    }
+    setIsSaving(false);
   };
 
   // Calculate Recommendation
