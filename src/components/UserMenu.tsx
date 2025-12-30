@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { LogOut, User as UserIcon, Mail, Settings, Users, AlertCircle, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 const UserMenu: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [showLogoutToast, setShowLogoutToast] = useState(false);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -30,48 +30,46 @@ const UserMenu: React.FC = () => {
       // 1. 执行 Supabase 登出
       await signOut();
       
-      // 2. 清除所有本地缓存，确保隐私安全
+      // 2. 清除所有本地存储，确保隐私安全
       localStorage.clear();
       // 针对 Supabase 的特定 token 进行二次清理（双重保险）
       localStorage.removeItem('supabase.auth.token');
       sessionStorage.clear();
+      
+      // 未来：如果使用了本地数据库，在此处清理
+      // if (window.indexedDB) {
+      //   // // 未来：if (dexieDB) dexieDB.delete()
+      // }
 
       // 3. UI 反馈与跳转
       setShowConfirm(false);
       setIsOpen(false);
-      setShowLogoutToast(true);
+      toast.success('已安全退出登录', {
+        icon: '👋',
+        style: {
+          borderRadius: '16px',
+          background: '#10b981',
+          color: '#fff',
+          fontWeight: 'bold',
+        },
+      });
       
       setTimeout(() => {
         navigate('/auth', { replace: true });
-      }, 1200);
-    } catch (error) {
+      }, 500);
+    } catch (error: any) {
       console.error('Logout error:', error);
-      alert('退出失败，请检查网络后重试');
+      toast.error(error.message || '退出失败，请检查网络后重试');
     } finally {
       setIsLoggingOut(false);
     }
   };
 
-  if (!user && !showLogoutToast) return null;
+  if (!user) return null;
 
   return (
     <div className="relative" ref={menuRef}>
-      {/* 1. 登出成功 Toast */}
-      <AnimatePresence>
-        {showLogoutToast && (
-          <motion.div
-            initial={{ opacity: 0, y: -20, x: '-50%' }}
-            animate={{ opacity: 1, y: 0, x: '-50%' }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed top-6 left-1/2 z-[100] bg-slate-900 dark:bg-emerald-500 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-800 dark:border-emerald-400"
-          >
-            <div className="w-2 h-2 bg-white rounded-full animate-ping" />
-            <span className="text-sm font-bold tracking-tight">已安全退出登录</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* 2. 头像按钮 */}
+      {/* 1. 头像按钮 */}
       <motion.button
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
@@ -81,7 +79,7 @@ const UserMenu: React.FC = () => {
         <UserIcon size={20} />
       </motion.button>
 
-      {/* 3. 下拉菜单 */}
+      {/* 2. 下拉菜单 */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -106,6 +104,7 @@ const UserMenu: React.FC = () => {
               <div className="relative group">
                 <button
                   disabled
+                  title="功能开发中"
                   className="flex items-center w-full gap-3 px-4 py-3 text-sm text-slate-400 dark:text-slate-600 cursor-not-allowed rounded-xl transition-colors"
                 >
                   <Users size={18} />
@@ -142,7 +141,7 @@ const UserMenu: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* 4. 登出确认弹窗 (Modal) */}
+      {/* 3. 登出确认弹窗 (Modal) */}
       <AnimatePresence>
         {showConfirm && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
@@ -168,10 +167,10 @@ const UserMenu: React.FC = () => {
                 </div>
                 
                 <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">
-                  确定要退出登录吗？
+                  确定退出登录吗？
                 </h3>
                 <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-8">
-                  退出后本地缓存将被清理，但您的饮食数据和方案已同步云端，不会丢失。
+                  退出后档案会保留，下次登录可直接使用。
                 </p>
 
                 <div className="flex flex-col w-full gap-3">
@@ -180,7 +179,7 @@ const UserMenu: React.FC = () => {
                     whileTap={{ scale: 0.98 }}
                     onClick={handleSignOut}
                     disabled={isLoggingOut}
-                    className="w-full py-4 bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white rounded-2xl font-black text-lg shadow-lg shadow-red-500/30 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-4 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-2xl font-black text-lg shadow-lg shadow-red-600/30 transition-all flex items-center justify-center gap-2"
                   >
                     {isLoggingOut ? (
                       <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
@@ -197,9 +196,9 @@ const UserMenu: React.FC = () => {
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setShowConfirm(false)}
                     disabled={isLoggingOut}
-                    className="w-full py-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl font-bold transition-all"
+                    className="w-full py-4 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold transition-all"
                   >
-                    再想想
+                    取消
                   </motion.button>
                 </div>
               </div>
