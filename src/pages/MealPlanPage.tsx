@@ -11,42 +11,15 @@ import {
   X,
   Plus,
   ArrowRightLeft,
-  Loader2,
-  ChevronDown
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { Dish, Meal, UserProfile } from '../types/meal';
+import { MOCK_FOOD_DATABASE } from '../data/mockFood';
 
 /**
  * 核心用户价值：将复杂的「吃什么、吃多少、怎么换」一键简化为极具个性化且动态可调的智能方案，让健康饮食不再有决策负担。
  */
-
-// --- 类型定义 ---
-interface Macro {
-  protein: number;
-  carbs: number;
-  fat: number;
-}
-
-interface Dish {
-  id: string;
-  name: string;
-  amount: string;
-  calories: number;
-  macros: Macro;
-}
-
-interface Meal {
-  id: string;
-  type: string;
-  time: string;
-  dishes: Dish[];
-}
-
-interface UserProfile {
-  weight: number;
-  targetCalories: number;
-  targetMacros: Macro; // 比例，如 { protein: 0.35, carbs: 0.4, fat: 0.25 }
-}
 
 // --- Mock 数据 ---
 const MOCK_USER: UserProfile = {
@@ -87,15 +60,31 @@ const INITIAL_MEALS: Meal[] = [
   }
 ];
 
-const REPLACEMENT_OPTIONS: Record<string, Dish[]> = {
-  'd1': [
-    { id: 'r1', name: '水煮蛋 (2个)', amount: '110g', calories: 155, macros: { protein: 13, carbs: 1.2, fat: 10 } },
-    { id: 'r2', name: '希腊酸奶', amount: '150g', calories: 140, macros: { protein: 15, carbs: 6, fat: 6 } }
-  ],
-  'd4': [
-    { id: 'r3', name: '煎鳕鱼排', amount: '180g', calories: 290, macros: { protein: 32, carbs: 0, fat: 12 } },
-    { id: 'r4', name: '慢炖牛肉 (少油)', amount: '150g', calories: 330, macros: { protein: 35, carbs: 0, fat: 18 } }
-  ]
+// --- 模拟 SQL 过滤函数 (RPC) ---
+const fetchReplacementsFromDB = async (targetDish: Dish, allergies: string[]): Promise<Dish[]> => {
+  // 模拟网络延迟
+  await new Promise(resolve => setTimeout(resolve, 4000));
+  
+  const { calories: targetCal, macros: targetMacros } = targetDish;
+  
+  return MOCK_FOOD_DATABASE.filter(food => {
+    // 1. 排除原菜品
+    if (food.id === targetDish.id) return false;
+    
+    // 2. 忌口过滤 (简单关键词匹配)
+    const hasAllergy = allergies.some(a => food.name.includes(a));
+    if (hasAllergy) return false;
+    
+    // 3. 热量过滤 (±20% 范围)
+    const calDiff = Math.abs(food.calories - targetCal);
+    if (calDiff > targetCal * 0.2) return false;
+    
+    // 4. 宏量营养相似度 (简单校验蛋白质是否接近)
+    const proteinDiff = Math.abs(food.macros.protein - targetMacros.protein);
+    if (proteinDiff > 15) return false;
+    
+    return true;
+  }).slice(0, 3); // 模拟 SQL LIMIT 3
 };
 
 // --- 组件开始 ---
@@ -106,12 +95,25 @@ const MealPlanPage: React.FC = () => {
   const [replacingDish, setReplacingDish] = useState<{ mealId: string, dishId: string } | null>(null);
   const [isReplacing, setIsReplacing] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [currentOptions, setCurrentOptions] = useState<Dish[]>([]);
 
   useEffect(() => {
     if (replacingDish) {
       setIsCalculating(true);
-      const timer = setTimeout(() => setIsCalculating(false), 5500); // 模拟 AI 计算 5.5 秒
-      return () => clearTimeout(timer);
+      
+      // 找到目标菜品对象
+      const meal = meals.find(m => m.id === replacingDish.mealId);
+      const dish = meal?.dishes.find(d => d.id === replacingDish.dishId);
+      
+      if (dish) {
+        fetchReplacementsFromDB(dish, ['香菜', '牛肉']) // 模拟用户忌口
+          .then(options => {
+            setCurrentOptions(options);
+            setIsCalculating(false);
+          });
+      }
+    } else {
+      setCurrentOptions([]);
     }
   }, [replacingDish]);
 
@@ -309,30 +311,36 @@ const MealPlanPage: React.FC = () => {
                   <FakeReplacementLoading onCancel={() => setReplacingDish(null)} />
                 ) : (
                   <div className="space-y-4">
-                    {REPLACEMENT_OPTIONS[replacingDish.dishId]?.map((option) => (
-                      <button
-                        key={option.id}
-                        disabled={isReplacing}
-                        onClick={() => handleReplace(replacingDish.mealId, replacingDish.dishId, option)}
-                        className="w-full group p-5 bg-slate-50 dark:bg-slate-800 rounded-[32px] flex items-center justify-between border-2 border-transparent hover:border-emerald-500 transition-all active:scale-[0.98]"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="p-4 bg-white dark:bg-slate-700 rounded-2xl">
-                            <ArrowRightLeft className="w-6 h-6 text-emerald-500" />
-                          </div>
-                          <div className="text-left">
-                            <div className="font-black text-slate-800 dark:text-white text-lg leading-tight mb-1">{option.name}</div>
-                            <div className="flex gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                              <span>{option.calories} kcal</span>
-                              <span className="text-emerald-500">P:{option.macros.protein}g</span>
+                    {currentOptions.length > 0 ? (
+                      currentOptions.map((option) => (
+                        <button
+                          key={option.id}
+                          disabled={isReplacing}
+                          onClick={() => handleReplace(replacingDish.mealId, replacingDish.dishId, option)}
+                          className="w-full group p-5 bg-slate-50 dark:bg-slate-800 rounded-[32px] flex items-center justify-between border-2 border-transparent hover:border-emerald-500 transition-all active:scale-[0.98]"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="p-4 bg-white dark:bg-slate-700 rounded-2xl">
+                              <ArrowRightLeft className="w-6 h-6 text-emerald-500" />
+                            </div>
+                            <div className="text-left">
+                              <div className="font-black text-slate-800 dark:text-white text-lg leading-tight mb-1">{option.name}</div>
+                              <div className="flex gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                                <span>{option.calories} kcal</span>
+                                <span className="text-emerald-500">P:{option.macros.protein}g</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="flex items-center justify-center w-12 h-12 bg-white dark:bg-slate-700 rounded-2xl shadow-sm text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-all">
-                          {isReplacing ? <Loader2 className="w-6 h-6 animate-spin" /> : <Plus className="w-6 h-6 stroke-[3px]" />}
-                        </div>
-                      </button>
-                    ))}
+                          <div className="flex items-center justify-center w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl shadow-sm text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                            {isReplacing ? <Loader2 className="w-6 h-6 animate-spin" /> : <Plus className="w-6 h-6 stroke-[3px]" />}
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="py-10 text-center text-slate-400 font-bold">
+                        未找到合适的替换项，请尝试更换其它菜品
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
