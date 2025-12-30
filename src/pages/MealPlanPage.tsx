@@ -105,6 +105,15 @@ const MealPlanPage: React.FC = () => {
   const [meals, setMeals] = useState<Meal[]>(INITIAL_MEALS);
   const [replacingDish, setReplacingDish] = useState<{ mealId: string, dishId: string } | null>(null);
   const [isReplacing, setIsReplacing] = useState(false);
+  const [isCalculating, setIsCalculating] = useState(false);
+
+  useEffect(() => {
+    if (replacingDish) {
+      setIsCalculating(true);
+      const timer = setTimeout(() => setIsCalculating(false), 5500); // 模拟 AI 计算 5.5 秒
+      return () => clearTimeout(timer);
+    }
+  }, [replacingDish]);
 
   useEffect(() => {
     // 模拟初始加载
@@ -279,7 +288,7 @@ const MealPlanPage: React.FC = () => {
             />
             <motion.div 
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-900 rounded-t-[48px] p-8 pb-12 shadow-2xl"
+              className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-900 rounded-t-[48px] p-8 pb-12 shadow-2xl min-h-[60vh]"
             >
               <div className="flex justify-between items-center mb-8">
                 <div>
@@ -287,7 +296,7 @@ const MealPlanPage: React.FC = () => {
                   <p className="text-slate-400 text-sm font-bold">已为您匹配热量相近且不含香菜的选项</p>
                 </div>
                 <button 
-                  disabled={isReplacing}
+                  disabled={isReplacing || isCalculating}
                   onClick={() => setReplacingDish(null)}
                   className="p-3 bg-slate-100 dark:bg-slate-800 rounded-2xl active:scale-90 transition-all"
                 >
@@ -295,34 +304,35 @@ const MealPlanPage: React.FC = () => {
                 </button>
               </div>
 
-              <div className="space-y-4">
-                {REPLACEMENT_OPTIONS[replacingDish.dishId]?.map((option) => (
-                  <button
-                    key={option.id}
-                    disabled={isReplacing}
-                    onClick={() => handleReplace(replacingDish.mealId, replacingDish.dishId, option)}
-                    className="w-full group p-5 bg-slate-50 dark:bg-slate-800 rounded-[32px] flex items-center justify-between border-2 border-transparent hover:border-emerald-500 transition-all active:scale-[0.98]"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="p-4 bg-white dark:bg-slate-700 rounded-2xl">
-                        <ArrowRightLeft className="w-6 h-6 text-emerald-500" />
-                      </div>
-                      <div className="text-left">
-                        <div className="font-black text-slate-800 dark:text-white text-lg leading-tight mb-1">{option.name}</div>
-                        <div className="flex gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                          <span>{option.calories} kcal</span>
-                          <span className="text-emerald-500">P:{option.macros.protein}g</span>
+              <div className="relative overflow-hidden rounded-[32px]">
+                {isCalculating ? (
+                  <AILoadingOverlay onCancel={() => setReplacingDish(null)} />
+                ) : (
+                  <div className="space-y-4">
+                    {REPLACEMENT_OPTIONS[replacingDish.dishId]?.map((option) => (
+                      <button
+                        key={option.id}
+                        disabled={isReplacing}
+                        onClick={() => handleReplace(replacingDish.mealId, replacingDish.dishId, option)}
+                        className="w-full group p-5 bg-slate-50 dark:bg-slate-800 rounded-[32px] flex items-center justify-between border-2 border-transparent hover:border-emerald-500 transition-all active:scale-[0.98]"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="p-4 bg-white dark:bg-slate-700 rounded-2xl">
+                            <ArrowRightLeft className="w-6 h-6 text-emerald-500" />
+                          </div>
+                          <div className="text-left">
+                            <div className="font-black text-slate-800 dark:text-white text-lg leading-tight mb-1">{option.name}</div>
+                            <div className="flex gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                              <span>{option.calories} kcal</span>
+                              <span className="text-emerald-500">P:{option.macros.protein}g</span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-center w-12 h-12 bg-white dark:bg-slate-700 rounded-2xl shadow-sm text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-all">
-                      {isReplacing ? <Loader2 className="w-6 h-6 animate-spin" /> : <Plus className="w-6 h-6 stroke-[3px]" />}
-                    </div>
-                  </button>
-                )) || (
-                  <div className="py-10 text-center text-slate-400 font-bold">
-                    <Loader2 className="w-10 h-10 animate-spin mx-auto mb-4 opacity-20" />
-                    AI 正在努力计算更多选项...
+                        <div className="flex items-center justify-center w-12 h-12 bg-white dark:bg-slate-700 rounded-2xl shadow-sm text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                          {isReplacing ? <Loader2 className="w-6 h-6 animate-spin" /> : <Plus className="w-6 h-6 stroke-[3px]" />}
+                        </div>
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
@@ -351,5 +361,94 @@ const MacroMini: React.FC<{ label: string, value: string, percent: number, color
     </div>
   </div>
 );
+
+// --- AI Loading Overlay ---
+const AILoadingOverlay: React.FC<{ onCancel: () => void }> = ({ onCancel }) => {
+  const [phase, setPhase] = useState(1);
+  const [text, setText] = useState('');
+  const fullTexts = [
+    "正在分析你的忌口和热量需求...",
+    "匹配相似热量...排除香菜...优先高蛋白...找到了 3 个备选...",
+    "正在优化宏量比例...几乎好了！"
+  ];
+
+  useEffect(() => {
+    // Phase control
+    const p1 = setTimeout(() => setPhase(2), 2000);
+    const p2 = setTimeout(() => setPhase(3), 4500);
+    return () => { clearTimeout(p1); clearTimeout(p2); };
+  }, []);
+
+  useEffect(() => {
+    // Typewriter effect
+    let currentText = fullTexts[phase - 1];
+    let i = 0;
+    setText('');
+    const interval = setInterval(() => {
+      setText(currentText.substring(0, i));
+      i++;
+      if (i > currentText.length) clearInterval(interval);
+    }, 50);
+    return () => clearInterval(interval);
+  }, [phase]);
+
+  const bubbles = [
+    { name: '鸡胸肉 → ?', delay: '0s' },
+    { name: '三文鱼...', delay: '0.2s' },
+    { name: '西蓝花...', delay: '0.4s' },
+  ];
+
+  return (
+    <div className="flex flex-col items-center justify-center py-12 px-4 text-center min-h-[400px]">
+      {/* Phase 1 & 3: Central Animation */}
+      <div className="relative mb-12">
+        <div className={`absolute inset-0 bg-emerald-500/20 rounded-full blur-3xl animate-pulse transition-opacity duration-1000 ${phase === 2 ? 'opacity-30' : 'opacity-100'}`} />
+        <div className="relative w-24 h-24 flex items-center justify-center bg-white dark:bg-slate-800 rounded-full shadow-2xl border border-emerald-100 dark:border-emerald-900/50">
+          <Sparkles className={`w-10 h-10 text-emerald-500 transition-all duration-700 ${phase === 3 ? 'scale-125 rotate-12' : 'animate-spin-slow'}`} />
+          
+          {/* Scanning Ring */}
+          <div className="absolute inset-[-8px] border-2 border-emerald-500/30 rounded-full animate-ping" />
+          <div className="absolute inset-[-16px] border border-emerald-500/10 rounded-full animate-pulse" />
+        </div>
+      </div>
+
+      {/* Phase 2: Thinking Bubbles */}
+      <div className={`flex flex-wrap justify-center gap-3 mb-8 h-12 transition-all duration-700 ${phase >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        {bubbles.map((b, idx) => (
+          <div 
+            key={idx}
+            style={{ animationDelay: b.delay }}
+            className={`px-4 py-2 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-2xl text-xs font-bold border border-emerald-100 dark:border-emerald-900/30 animate-float shadow-sm
+              ${phase === 3 ? 'border-emerald-500 bg-emerald-100 dark:bg-emerald-900/50 scale-110' : 'blur-[1px] opacity-70'}
+            `}
+          >
+            {b.name}
+          </div>
+        ))}
+      </div>
+
+      {/* Text Progress */}
+      <div className="min-h-[3rem] mb-12">
+        <p className="text-lg font-black text-slate-700 dark:text-slate-200 tracking-tight transition-all">
+          {text}
+          <span className="inline-block w-1 h-5 bg-emerald-500 ml-1 animate-pulse" />
+        </p>
+      </div>
+
+      {/* Cancel Button */}
+      <button 
+        onClick={onCancel}
+        className="px-8 py-3 bg-white dark:bg-slate-800 text-slate-400 font-bold rounded-2xl border border-slate-200 dark:border-slate-800 active:scale-95 transition-all"
+      >
+        取消计算
+      </button>
+
+      {/* Scanning Line (Overlay Effect) */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20">
+        <div className="w-full h-1/2 bg-gradient-to-b from-transparent via-emerald-500 to-transparent animate-scan" />
+      </div>
+    </div>
+  );
+};
 
 export default MealPlanPage;
