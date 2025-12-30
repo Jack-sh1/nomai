@@ -306,7 +306,7 @@ const MealPlanPage: React.FC = () => {
 
               <div className="relative overflow-hidden rounded-[32px]">
                 {isCalculating ? (
-                  <AILoadingOverlay onCancel={() => setReplacingDish(null)} />
+                  <FakeReplacementLoading onCancel={() => setReplacingDish(null)} />
                 ) : (
                   <div className="space-y-4">
                     {REPLACEMENT_OPTIONS[replacingDish.dishId]?.map((option) => (
@@ -362,90 +362,103 @@ const MacroMini: React.FC<{ label: string, value: string, percent: number, color
   </div>
 );
 
-// --- AI Loading Overlay ---
-const AILoadingOverlay: React.FC<{ onCancel: () => void }> = ({ onCancel }) => {
-  const [phase, setPhase] = useState(1);
-  const [text, setText] = useState('');
-  const fullTexts = [
-    "正在分析你的忌口和热量需求...",
-    "匹配相似热量...排除香菜...优先高蛋白...找到了 3 个备选...",
-    "正在优化宏量比例...几乎好了！"
-  ];
-
+// --- Fake Progressive Loading ---
+const FakeReplacementLoading: React.FC<{ onCancel: () => void }> = ({ onCancel }) => {
+  const [phase, setPhase] = useState(0); // 0, 1, 2, 3 (reveal)
+  
   useEffect(() => {
-    // Phase control
-    const p1 = setTimeout(() => setPhase(2), 2000);
-    const p2 = setTimeout(() => setPhase(3), 4500);
-    return () => { clearTimeout(p1); clearTimeout(p2); };
+    const timers = [
+      setTimeout(() => setPhase(1), 1200),
+      setTimeout(() => setPhase(2), 2400),
+      setTimeout(() => setPhase(3), 4000), // 开始收尾
+    ];
+    return () => timers.forEach(clearTimeout);
   }, []);
 
-  useEffect(() => {
-    // Typewriter effect
-    let currentText = fullTexts[phase - 1];
-    let i = 0;
-    setText('');
-    const interval = setInterval(() => {
-      setText(currentText.substring(0, i));
-      i++;
-      if (i > currentText.length) clearInterval(interval);
-    }, 50);
-    return () => clearInterval(interval);
-  }, [phase]);
-
-  const bubbles = [
-    { name: '鸡胸肉 → ?', delay: '0s' },
-    { name: '三文鱼...', delay: '0.2s' },
-    { name: '西蓝花...', delay: '0.4s' },
+  const placeholders = [
+    { name: "匹配主食...", macros: "240kcal · P:12g" },
+    { name: "调整蛋白质...", macros: "180kcal · P:32g" },
+    { name: "补充微量元素...", macros: "45kcal · C:8g" },
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-4 text-center min-h-[400px]">
-      {/* Phase 1 & 3: Central Animation */}
-      <div className="relative mb-12">
-        <div className={`absolute inset-0 bg-emerald-500/20 rounded-full blur-3xl animate-pulse transition-opacity duration-1000 ${phase === 2 ? 'opacity-30' : 'opacity-100'}`} />
-        <div className="relative w-24 h-24 flex items-center justify-center bg-white dark:bg-slate-800 rounded-full shadow-2xl border border-emerald-100 dark:border-emerald-900/50">
-          <Sparkles className={`w-10 h-10 text-emerald-500 transition-all duration-700 ${phase === 3 ? 'scale-125 rotate-12' : 'animate-spin-slow'}`} />
-          
-          {/* Scanning Ring */}
-          <div className="absolute inset-[-8px] border-2 border-emerald-500/30 rounded-full animate-ping" />
-          <div className="absolute inset-[-16px] border border-emerald-500/10 rounded-full animate-pulse" />
+    <div className="space-y-4 py-4 min-h-[400px]">
+      {/* AI 状态文本 */}
+      <div className="flex items-center gap-3 px-2 mb-6">
+        <div className="relative">
+          <Sparkles className="w-5 h-5 text-emerald-500 animate-pulse" />
+          <div className="absolute inset-0 bg-emerald-500/20 blur-lg animate-ping rounded-full" />
         </div>
-      </div>
-
-      {/* Phase 2: Thinking Bubbles */}
-      <div className={`flex flex-wrap justify-center gap-3 mb-8 h-12 transition-all duration-700 ${phase >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        {bubbles.map((b, idx) => (
-          <div 
-            key={idx}
-            style={{ animationDelay: b.delay }}
-            className={`px-4 py-2 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-2xl text-xs font-bold border border-emerald-100 dark:border-emerald-900/30 animate-float shadow-sm
-              ${phase === 3 ? 'border-emerald-500 bg-emerald-100 dark:bg-emerald-900/50 scale-110' : 'blur-[1px] opacity-70'}
-            `}
-          >
-            {b.name}
-          </div>
-        ))}
-      </div>
-
-      {/* Text Progress */}
-      <div className="min-h-[3rem] mb-12">
-        <p className="text-lg font-black text-slate-700 dark:text-slate-200 tracking-tight transition-all">
-          {text}
-          <span className="inline-block w-1 h-5 bg-emerald-500 ml-1 animate-pulse" />
+        <p className="text-sm font-black text-slate-600 dark:text-slate-300 tracking-tight">
+          {phase < 3 ? "AI 正在为你筛选最优方案..." : "正在完成最后配比..."}
+          <span className="inline-block w-1 h-3 bg-emerald-500 ml-1 animate-bounce" />
         </p>
       </div>
 
-      {/* Cancel Button */}
-      <button 
-        onClick={onCancel}
-        className="px-8 py-3 bg-white dark:bg-slate-800 text-slate-400 font-bold rounded-2xl border border-slate-200 dark:border-slate-800 active:scale-95 transition-all"
-      >
-        取消计算
-      </button>
+      {/* 伪造的占位卡片流 */}
+      <div className="space-y-3">
+        {placeholders.map((item, i) => {
+          const isVisible = phase >= i;
+          const isRevealing = phase >= 3;
 
-      {/* Scanning Line (Overlay Effect) */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20">
-        <div className="w-full h-1/2 bg-gradient-to-b from-transparent via-emerald-500 to-transparent animate-scan" />
+          return (
+            <div 
+              key={i}
+              className={`
+                group p-5 rounded-[32px] border-2 transition-all duration-1000 flex items-center justify-between
+                ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}
+                ${isRevealing 
+                  ? 'bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-500/30' 
+                  : 'bg-slate-50 dark:bg-slate-800/50 border-transparent'}
+              `}
+            >
+              <div className="flex items-center gap-4 flex-1">
+                <div className={`
+                  p-4 rounded-2xl transition-all duration-700
+                  ${isRevealing ? 'bg-emerald-100 dark:bg-emerald-900/40' : 'bg-slate-200 dark:bg-slate-700 animate-pulse'}
+                `}>
+                  <ArrowRightLeft className={`w-5 h-5 ${isRevealing ? 'text-emerald-600' : 'text-slate-400'}`} />
+                </div>
+                
+                <div className="space-y-2 flex-1">
+                  <div className={`
+                    h-5 font-black transition-all duration-1000
+                    ${isRevealing ? 'text-slate-800 dark:text-white blur-0' : 'bg-slate-200 dark:bg-slate-700 w-2/3 rounded-md blur-[4px] opacity-50'}
+                  `}>
+                    {isRevealing ? item.name.replace('...', '') : "????? · ????"}
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <div className={`h-3 rounded-full transition-all duration-1000 ${isRevealing ? 'bg-emerald-500/40 w-16' : 'bg-slate-200 dark:bg-slate-700 w-24 opacity-30'}`} />
+                    <div className={`h-3 rounded-full transition-all duration-1000 ${isRevealing ? 'bg-orange-500/30 w-12' : 'bg-slate-200 dark:bg-slate-700 w-16 opacity-30'}`} />
+                  </div>
+                </div>
+              </div>
+
+              <div className={`
+                w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-700
+                ${isRevealing ? 'bg-emerald-500 text-white scale-100' : 'bg-slate-200 dark:bg-slate-700 scale-90 opacity-50'}
+              `}>
+                {isRevealing ? <CheckCircle2 className="w-5 h-5" /> : <Loader2 className="w-5 h-5 animate-spin" />}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="pt-8 flex flex-col items-center gap-4">
+        <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-emerald-500 transition-all duration-[4000ms] ease-out"
+            style={{ width: phase >= 3 ? '100%' : `${(phase + 1) * 30}%` }}
+          />
+        </div>
+        <button 
+          onClick={onCancel}
+          className="px-6 py-2 text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+        >
+          取消计算
+        </button>
       </div>
     </div>
   );
