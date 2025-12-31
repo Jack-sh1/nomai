@@ -3,13 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { LogOut, User as UserIcon, Mail, Settings, Users, AlertCircle, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import toast from 'react-hot-toast';
+import { supabase } from '../lib/supabase';
+import { showToast } from '../utils/toast';
+import { clearLocalDBOnLogout } from '../utils/dbCleanup';
 
-const UserMenu: React.FC = () => {
+interface UserMenuProps {
+  className?: string;
+}
+
+const UserMenu: React.FC<UserMenuProps> = ({ className }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -26,49 +32,42 @@ const UserMenu: React.FC = () => {
 
   const handleSignOut = async () => {
     setIsLoggingOut(true);
-    try {
-      // 1. 执行 Supabase 登出
-      await signOut();
-      
-      // 2. 清除所有本地存储，确保隐私安全
+    const logoutPromise = (async () => {
+      // 1. 调用 Supabase 登出
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+
+      // 2. 深度清理本地存储
       localStorage.clear();
-      // 针对 Supabase 的特定 token 进行二次清理（双重保险）
-      localStorage.removeItem('supabase.auth.token');
       sessionStorage.clear();
       
-      // 未来：如果使用了本地数据库，在此处清理
-      // if (window.indexedDB) {
-      //   // // 未来：if (dexieDB) dexieDB.delete()
-      // }
+      // 3. 清理 IndexedDB & CacheStorage (物理删除数据库)
+      await clearLocalDBOnLogout();
 
-      // 3. UI 反馈与跳转
-      setShowConfirm(false);
-      setIsOpen(false);
-      toast.success('已安全退出登录', {
-        icon: '👋',
-        style: {
-          borderRadius: '16px',
-          background: '#10b981',
-          color: '#fff',
-          fontWeight: 'bold',
-        },
-      });
-      
-      setTimeout(() => {
-        navigate('/auth', { replace: true });
-      }, 500);
-    } catch (error: any) {
-      console.error('Logout error:', error);
-      toast.error(error.message || '退出失败，请检查网络后重试');
+      // 4. 跳转
+      navigate('/auth', { replace: true });
+    })();
+
+    showToast.promise(logoutPromise, {
+      loading: '正在安全退出...',
+      success: '已退出登录，本地数据已清理',
+      error: (err) => `退出失败: ${err.message}`,
+    });
+
+    try {
+      await logoutPromise;
+    } catch (err) {
+      console.error('Logout error:', err);
     } finally {
       setIsLoggingOut(false);
+      setShowConfirm(false);
     }
   };
 
   if (!user) return null;
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className={`relative ${className || ''}`} ref={menuRef}>
       {/* 1. 头像按钮 */}
       <motion.button
         whileHover={{ scale: 1.05 }}
