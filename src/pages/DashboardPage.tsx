@@ -7,10 +7,12 @@ import {
   Flame, 
   TrendingUp, 
   ChevronRight,
-  Plus
+  Plus,
+  RefreshCw
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import UserMenu from '../components/UserMenu';
+import { showToast } from '../utils/toast';
 
 /**
  * 首页核心目的：一眼看清「今日还能吃多少」，通过视觉压力（剩余热量）引导用户记录行为。
@@ -19,6 +21,22 @@ import UserMenu from '../components/UserMenu';
 
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
+
+  // 示例：模拟同步数据的异步操作
+  const handleSyncData = async () => {
+    const syncPromise = new Promise((resolve, reject) => {
+      setTimeout(() => {
+        // 模拟 80% 成功率
+        Math.random() > 0.2 ? resolve('Success') : reject(new Error('Network error'));
+      }, 2000);
+    });
+
+    await showToast.promise(syncPromise, {
+      loading: '正在同步饮食数据...',
+      success: '数据同步完成！✨',
+      error: '同步失败，请检查网络',
+    });
+  };
 
   // Mock 数据
   const stats = {
@@ -51,7 +69,18 @@ const DashboardPage: React.FC = () => {
             {getTimeGreeting()}，<span className="text-emerald-500">NomAi</span>
           </h1>
         </div>
-        <UserMenu />
+        <div className="flex items-center gap-2">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleSyncData}
+            className="p-2 text-slate-400 hover:text-emerald-500 transition-colors"
+            title="同步数据"
+          >
+            <RefreshCw size={20} />
+          </motion.button>
+          <UserMenu />
+        </div>
       </header>
 
       <main className="flex-1 px-6 pb-32 space-y-8">

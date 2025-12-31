@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { Toaster } from 'react-hot-toast';
+import { Toaster, useToasterStore, toast } from 'react-hot-toast';
+import { useEffect } from 'react';
 
 import AuthPage from './pages/AuthPage';
 import ScanResultPage from './pages/ScanResultPage';
@@ -76,16 +77,46 @@ function AppRoutes() {
 }
 
 function App() {
+  const { toasts } = useToasterStore();
+
+  // 限制同时显示的 Toast 数量为 3 个
+  useEffect(() => {
+    toasts
+      .filter((t) => t.visible)
+      .filter((_, i) => i >= 3)
+      .forEach((t) => toast.dismiss(t.id));
+  }, [toasts]);
+
   return (
     <BrowserRouter>
       <AuthProvider>
         <Toaster 
           position="bottom-center" 
+          reverseOrder={false}
+          gutter={8}
           toastOptions={{
             duration: 3000,
             style: {
-              borderRadius: '16px',
-            }
+              borderRadius: '20px',
+              padding: '12px 24px',
+              fontSize: '15px',
+              fontWeight: '600',
+              maxWidth: '90vw',
+            },
+            success: {
+              duration: 3000,
+              iconTheme: {
+                primary: '#10b981',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              duration: 5000,
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+            },
           }}
         />
         <AppRoutes />
