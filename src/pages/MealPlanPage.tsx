@@ -16,6 +16,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Dish, Meal, UserProfile } from '../types/meal';
 import { MOCK_FOOD_DATABASE } from '../data/mockFood';
+import ReGenerateButton from '../components/ReGenerateButton';
 
 /**
  * 核心用户价值：将复杂的「吃什么、吃多少、怎么换」一键简化为极具个性化且动态可调的智能方案，让健康饮食不再有决策负担。
@@ -281,9 +282,7 @@ const MealPlanPage: React.FC = () => {
             <CheckCircle2 className="w-7 h-7" />
             一键记录整天
           </button>
-          <button className="w-full py-4 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 rounded-[28px] font-bold text-sm border border-slate-200 dark:border-slate-800 active:scale-95 transition-all">
-            重新生成一套
-          </button>
+          <ReGenerateButton onSuccess={(newMeals) => setMeals(newMeals)} />
         </div>
         <div className="h-safe pb-2" />
       </footer>
