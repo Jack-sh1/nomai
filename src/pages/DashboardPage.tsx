@@ -10,7 +10,7 @@ import {
   Plus,
   RefreshCw
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import UserMenu from '../components/UserMenu';
 import { showToast } from '../utils/toast';
 
@@ -19,123 +19,148 @@ import { showToast } from '../utils/toast';
  * 第一眼想看到：当前热量进度圆环、还剩多少额度、三大营养素是否失衡。
  */
 
+import { usePersonalizedKcal } from '../hooks/usePersonalizedKcal';
+
+import TopBar from '../components/TopBar';
+
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
+  const { 
+    consumed, 
+    baseTarget, 
+    dynamicTarget, 
+    remaining, 
+    remainingPercent,
+    insight, 
+    statusColor,
+    loading, 
+    history,
+    refresh
+  } = usePersonalizedKcal();
 
-  // 示例：模拟同步数据的异步操作
-  const handleSyncData = async () => {
-    const syncPromise = new Promise((resolve, reject) => {
-      setTimeout(() => {
-        // 模拟 80% 成功率
-        Math.random() > 0.2 ? resolve('Success') : reject(new Error('Network error'));
-      }, 2000);
-    });
-
-    await showToast.promise(syncPromise, {
-      loading: '正在同步饮食数据...',
-      success: '数据同步完成！✨',
-      error: '同步失败，请检查网络',
-    });
+  // 颜色映射配置
+  const colorMap = {
+    emerald: {
+      ring: 'stroke-emerald-500',
+      bg: 'bg-emerald-50 dark:bg-emerald-900/10',
+      text: 'text-emerald-600 dark:text-emerald-400',
+      border: 'border-emerald-100/50 dark:border-emerald-500/10'
+    },
+    amber: {
+      ring: 'stroke-amber-500',
+      bg: 'bg-amber-50 dark:bg-amber-900/10',
+      text: 'text-amber-600 dark:text-amber-400',
+      border: 'border-amber-100/50 dark:border-amber-500/10'
+    },
+    rose: {
+      ring: 'stroke-rose-500',
+      bg: 'bg-rose-50 dark:bg-rose-900/10',
+      text: 'text-rose-600 dark:text-rose-400',
+      border: 'border-rose-100/50 dark:border-rose-500/10'
+    }
   };
 
-  // Mock 数据
-  const stats = {
-    consumed: 1240,
-    target: 2100,
-    protein: { current: 85, target: 150, color: 'bg-emerald-500' },
-    carbs: { current: 120, target: 250, color: 'bg-amber-500' },
-    fat: { current: 42, target: 70, color: 'bg-rose-500' }
-  };
+  const activeTheme = colorMap[statusColor];
 
-  const remaining = stats.target - stats.consumed;
-  const progress = (stats.consumed / stats.target) * 100;
-
-  const getTimeGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return '早安';
-    if (hour < 18) return '午安';
-    return '晚安';
-  };
+  const progress = Math.min(consumed / dynamicTarget, 1);
 
   return (
     <div className="flex flex-col min-h-screen bg-white dark:bg-slate-950 transition-colors duration-300">
-      {/* 1. 顶部问候 */}
-      <header className="flex items-center justify-between px-6 py-4">
-        <div>
-          <p className="text-slate-400 dark:text-slate-500 text-sm font-bold uppercase tracking-widest">
-            {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' })}
-          </p>
-          <h1 className="text-3xl font-black text-slate-800 dark:text-white">
-            {getTimeGreeting()}，<span className="text-emerald-500">NomAi</span>
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleSyncData}
-            className="p-2 text-slate-400 hover:text-emerald-500 transition-colors"
-            title="同步数据"
-          >
-            <RefreshCw size={20} />
-          </motion.button>
-          <UserMenu />
-        </div>
-      </header>
+      <TopBar onRefresh={refresh} isLoading={loading} />
 
-      <main className="flex-1 px-6 pb-32 space-y-8">
-        {/* 2. 今日热量大卡片 */}
-        <section className="relative p-8 bg-emerald-50 dark:bg-emerald-900/10 rounded-[40px] overflow-hidden">
+      {loading && consumed === 0 ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
+        </div>
+      ) : (
+        <main className="flex-1 px-6 pb-24">
+          {/* 1. 核心进度环 */}
+        <motion.section 
+          layout
+          className={`relative p-8 rounded-[40px] overflow-hidden transition-colors duration-500 ${activeTheme.bg}`}
+        >
           <div className="relative z-10 flex flex-col items-center">
-            {/* 简易 SVG 圆环 */}
-            <div className="relative w-48 h-48 flex items-center justify-center">
+            {/* 动态圆环 */}
+            <div className="relative w-52 h-52 flex items-center justify-center">
               <svg className="w-full h-full -rotate-90">
+                {/* 底环 */}
                 <circle
-                  cx="96"
-                  cy="96"
-                  r="88"
-                  className="stroke-emerald-100 dark:stroke-emerald-900/30 fill-none"
-                  strokeWidth="12"
+                  cx="104"
+                  cy="104"
+                  r="92"
+                  className="stroke-slate-200 dark:stroke-slate-800 fill-none opacity-50"
+                  strokeWidth="14"
                 />
+                {/* 进度环 */}
                 <motion.circle
-                  cx="96"
-                  cy="96"
-                  r="88"
-                  className="stroke-emerald-500 fill-none"
-                  strokeWidth="12"
+                  cx="104"
+                  cy="104"
+                  r="92"
+                  className={`fill-none transition-colors duration-500 ${activeTheme.ring}`}
+                  strokeWidth="14"
                   strokeLinecap="round"
                   initial={{ pathLength: 0 }}
-                  animate={{ pathLength: progress / 100 }}
-                  transition={{ duration: 1.5, ease: "easeOut" }}
+                  animate={{ pathLength: progress }}
+                  transition={{ duration: 1.5, ease: "circOut" }}
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-5xl font-black text-slate-900 dark:text-white tabular-nums">
-                  {stats.consumed}
-                </span>
-                <span className="text-slate-400 dark:text-slate-500 font-bold text-sm uppercase">
-                  / {stats.target} kcal
+                <motion.span 
+                  key={consumed}
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="text-5xl font-black text-slate-900 dark:text-white tabular-nums"
+                >
+                  {consumed}
+                </motion.span>
+                <span className="text-slate-400 dark:text-slate-500 font-bold text-xs uppercase mt-1">
+                  目标 {dynamicTarget} kcal
                 </span>
               </div>
             </div>
 
-            <div className="mt-6 text-center">
-              <p className="text-lg font-bold text-slate-700 dark:text-slate-300">
-                还剩 <span className="text-emerald-600 dark:text-emerald-400">{remaining}</span> kcal
+            <div className="mt-8 text-center w-full">
+              <p className="text-xl font-black text-slate-800 dark:text-slate-100">
+                {remaining >= 0 ? '还剩 ' : '已超 '} 
+                <span className={`transition-colors duration-500 ${activeTheme.text}`}>
+                  {Math.abs(remaining)}
+                </span> kcal
               </p>
-              <p className="text-xs text-slate-400 mt-1">今天已经完成了 {Math.round(progress)}% 的目标</p>
+              
+              {/* AI 智能文案 - 淡入动画 */}
+              <AnimatePresence mode="wait">
+                <motion.div 
+                  key={insight}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className={`mt-4 px-5 py-3 rounded-2xl border transition-colors duration-500 bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm ${activeTheme.border}`}
+                >
+                  <p className={`text-sm font-medium leading-relaxed ${activeTheme.text}`}>
+                    “ {insight} ”
+                  </p>
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
           
-          {/* 背景装饰 */}
-          <div className="absolute top-[-20%] right-[-10%] w-40 h-40 bg-emerald-200/20 dark:bg-emerald-500/5 rounded-full blur-3xl" />
-        </section>
+          {/* 动态背景光效 */}
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.2, 1],
+              opacity: [0.2, 0.3, 0.2] 
+            }}
+            transition={{ duration: 8, repeat: Infinity }}
+            className={`absolute top-[-20%] right-[-10%] w-56 h-56 rounded-full blur-3xl transition-colors duration-500 ${statusColor === 'emerald' ? 'bg-emerald-400/20' : statusColor === 'amber' ? 'bg-amber-400/20' : 'bg-rose-400/20'}`} 
+          />
+        </motion.section>
 
         {/* 3. 三大宏营养区域 */}
+        {/* 这里暂用 mock，后续可从 hook 扩展 */}
         <section className="grid grid-cols-1 gap-4">
-          <MacroRow label="蛋白质" current={stats.protein.current} target={stats.protein.target} color="bg-emerald-500" />
-          <MacroRow label="碳水" current={stats.carbs.current} target={stats.carbs.target} color="bg-amber-500" />
-          <MacroRow label="脂肪" current={stats.fat.current} target={stats.fat.target} color="bg-rose-500" />
+          <MacroRow label="蛋白质" current={85} target={150} color="bg-emerald-500" />
+          <MacroRow label="碳水" current={120} target={250} color="bg-amber-500" />
+          <MacroRow label="脂肪" current={42} target={70} color="bg-rose-500" />
         </section>
 
         {/* 4. 最近趋势小模块 */}
@@ -154,17 +179,20 @@ const DashboardPage: React.FC = () => {
           </div>
           
           <div className="flex items-end justify-between h-24 gap-2 px-2">
-            {[1800, 2200, 1950, 2400, 2100, 1700, 1240].map((val, i) => {
-              const height = (val / 2500) * 100;
+            {/* 使用真实历史数据填充趋势图，不足 7 天补 0 */}
+            {Array.from({ length: 7 }).map((_, i) => {
+              const val = history[i] || 0;
+              const height = Math.min((val / (baseTarget * 1.5)) * 100, 100);
+              const isToday = i === history.length;
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-2">
                   <motion.div 
                     initial={{ height: 0 }}
                     animate={{ height: `${height}%` }}
-                    className={`w-full rounded-t-lg ${i === 6 ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800'}`}
+                    className={`w-full rounded-t-lg ${val > baseTarget ? 'bg-rose-400' : 'bg-emerald-500'} ${val === 0 ? 'bg-slate-200 dark:bg-slate-800' : ''}`}
                   />
                   <span className="text-[10px] font-bold text-slate-400 uppercase">
-                    {['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}
+                    {['一', '二', '三', '四', '五', '六', '日'][i]}
                   </span>
                 </div>
               );
@@ -172,6 +200,7 @@ const DashboardPage: React.FC = () => {
           </div>
         </section>
       </main>
+      )}
 
       {/* 5. 底部固定操作区 */}
       <footer className="fixed bottom-0 left-0 right-0 p-6 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-t border-slate-100 dark:border-slate-800">

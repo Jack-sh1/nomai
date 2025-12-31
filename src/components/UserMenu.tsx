@@ -73,9 +73,9 @@ const UserMenu: React.FC<UserMenuProps> = ({ className }) => {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-center w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:ring-4 hover:ring-emerald-50 dark:hover:ring-emerald-900/20 transition-all duration-300 border border-emerald-200 dark:border-emerald-800 shadow-sm"
+        className="flex items-center justify-center w-10 h-10 rounded-full bg-emerald-500 text-white hover:ring-4 hover:ring-emerald-50 dark:hover:ring-emerald-900/20 transition-all duration-300 shadow-sm font-bold text-lg"
       >
-        <UserIcon size={20} />
+        {user?.email?.[0].toUpperCase() || 'U'}
       </motion.button>
 
       {/* 2. 下拉菜单 */}
