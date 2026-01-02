@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Toaster, useToasterStore, toast } from 'react-hot-toast';
 import { useEffect } from 'react';
+import { useNetworkStatus } from './hooks/useNetworkStatus';
+import GlobalErrorBoundary from './components/GlobalErrorBoundary';
 
 import AuthPage from './pages/AuthPage';
 import ScanResultPage from './pages/ScanResultPage';
@@ -78,6 +80,8 @@ function AppRoutes() {
 
 function App() {
   const { toasts } = useToasterStore();
+  // 启用全局网络状态监听
+  useNetworkStatus();
 
   // 限制同时显示的 Toast 数量为 3 个
   useEffect(() => {
@@ -88,40 +92,38 @@ function App() {
   }, [toasts]);
 
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Toaster 
-          position="bottom-center" 
-          reverseOrder={false}
-          gutter={8}
-          toastOptions={{
-            duration: 3000,
-            style: {
-              borderRadius: '20px',
-              padding: '12px 24px',
-              fontSize: '15px',
-              fontWeight: '600',
-              maxWidth: '90vw',
-            },
-            success: {
+    <GlobalErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <Toaster 
+            position="bottom-center" 
+            reverseOrder={false}
+            gutter={8}
+            toastOptions={{
               duration: 3000,
-              iconTheme: {
-                primary: '#10b981',
-                secondary: '#fff',
+              style: {
+                borderRadius: '20px',
+                background: '#1e293b',
+                color: '#fff',
+                fontSize: '14px',
+                padding: '12px 20px',
               },
-            },
-            error: {
-              duration: 5000,
-              iconTheme: {
-                primary: '#ef4444',
-                secondary: '#fff',
+              success: {
+                style: {
+                  background: '#10b981',
+                },
               },
-            },
-          }}
-        />
-        <AppRoutes />
-      </AuthProvider>
-    </BrowserRouter>
+              error: {
+                style: {
+                  background: '#ef4444',
+                },
+              },
+            }}
+          />
+          <AppRoutes />
+        </AuthProvider>
+      </BrowserRouter>
+    </GlobalErrorBoundary>
   );
 }
 

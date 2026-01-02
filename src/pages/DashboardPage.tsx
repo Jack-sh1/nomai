@@ -8,11 +8,13 @@ import {
   TrendingUp, 
   ChevronRight,
   Plus,
-  RefreshCw
+  RefreshCw,
+  WifiOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import UserMenu from '../components/UserMenu';
 import { showToast } from '../utils/toast';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 /**
  * 首页核心目的：一眼看清「今日还能吃多少」，通过视觉压力（剩余热量）引导用户记录行为。
@@ -25,6 +27,7 @@ import TopBar from '../components/TopBar';
 
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
+  const { isOnline } = useNetworkStatus();
   const { 
     consumed, 
     baseTarget, 
@@ -67,6 +70,17 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="flex flex-col min-h-screen bg-white dark:bg-slate-950 transition-colors duration-300">
       <TopBar onRefresh={refresh} isLoading={loading} />
+
+      {!isOnline && (
+        <motion.div 
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          className="bg-amber-50 dark:bg-amber-900/20 px-6 py-2 flex items-center gap-3 text-amber-700 dark:text-amber-400 text-sm border-b border-amber-100 dark:border-amber-900/30"
+        >
+          <WifiOff size={16} />
+          <span>网络已断开，部分功能可能无法使用</span>
+        </motion.div>
+      )}
 
       {loading && consumed === 0 ? (
         <div className="flex-1 flex items-center justify-center">

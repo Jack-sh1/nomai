@@ -96,37 +96,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     log('🚀 Initializing AuthProvider...');
 
+    // 监听网络恢复事件，自动重试 session 刷新
+    const handleReconnect = () => {
+      log('🌐 Network reconnected, retrying session check...');
+      supabase.auth.getSession().then(({ data: { session: s } }) => {
+        handleSession(s, 'RECONNECTED');
+      });
+    };
+    window.addEventListener('network-reconnected', handleReconnect);
+
     // 8秒超时保护：防止数据库查询挂起导致页面永久转圈
     loadingTimeoutRef.current = setTimeout(() => {
       if (loading) {
-        log('⚠️ Loading Timeout! Forcing end of loading state.');
+        log('⏰ Auth timeout reached, forcing loading false');
         setLoading(false);
       }
     }, 8000);
 
-    // 1. 立即获取当前 Session
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      handleSession(initialSession, 'INITIAL_GET');
+    // 获取初始 Session
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      handleSession(s, 'INITIAL_FETCH');
+    }).catch(err => {
+      log('💥 INITIAL_FETCH ERROR', err);
+      // 如果是网络错误，我们依赖网络监听器重试，但这里需要关闭 loading
+      setLoading(false);
     });
 
-    // 2. 监听 Auth 变化 (兼容 Magic Link 登录)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      log(`🔄 onAuthStateChange: ${event}`);
-      
-      if (event === 'SIGNED_OUT') {
-        log('🚪 Global Cleanup on SIGNED_OUT');
-        localStorage.clear();
-        sessionStorage.clear();
-      }
-
-      if (['SIGNED_IN', 'SIGNED_OUT', 'TOKEN_REFRESHED', 'USER_UPDATED'].includes(event)) {
-        await handleSession(currentSession, event);
-      }
+    // 监听 Auth 状态变更
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+      handleSession(s, _event);
     });
 
     return () => {
       subscription.unsubscribe();
       if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+      window.removeEventListener('network-reconnected', handleReconnect);
     };
   }, []);
 

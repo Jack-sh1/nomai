@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import UserMenu from './UserMenu';
@@ -11,6 +11,7 @@ interface TopBarProps {
 
 const TopBar: React.FC<TopBarProps> = ({ onRefresh, isLoading }) => {
   const { user } = useAuth();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const getTimeGreeting = () => {
     const hour = new Date().getHours();
@@ -56,8 +57,16 @@ const TopBar: React.FC<TopBarProps> = ({ onRefresh, isLoading }) => {
         </motion.button>
         
         <div className="relative">
-          <UserMenu />
-          {/* 这里可以根据需要调整 UserMenu 内部的头像逻辑，目前 UserMenu 已自带头像按钮 */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-emerald-500 text-white shadow-sm font-bold text-lg cursor-pointer relative z-20"
+          >
+            {user?.email?.[0].toUpperCase() || 'U'}
+          </motion.button>
+          
+          <UserMenu open={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
         </div>
       </div>
     </header>
