@@ -24,6 +24,7 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { usePersonalizedKcal } from '../hooks/usePersonalizedKcal';
 
 import TopBar from '../components/TopBar';
+import VoiceMode from '../components/VoiceMode';
 
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -70,6 +71,9 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="flex flex-col min-h-screen bg-white dark:bg-slate-950 transition-colors duration-300">
       <TopBar onRefresh={refresh} isLoading={loading} />
+      
+      {/* 语音模式浮动按钮 */}
+      <VoiceMode />
 
       {!isOnline && (
         <motion.div 
