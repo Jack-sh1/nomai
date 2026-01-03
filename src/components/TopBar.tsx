@@ -32,7 +32,7 @@ const TopBar: React.FC<TopBarProps> = ({ onRefresh, isLoading }) => {
   };
 
   return (
-    <header className="flex justify-between items-center px-6 py-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md sticky top-0 z-10 transition-colors duration-300">
+    <header className="flex justify-between items-center px-6 py-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md sticky top-0 z-50 transition-colors duration-300">
       {/* 左侧：问候 + 日期 */}
       <div className="flex flex-col">
         <p className="text-xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">
@@ -60,8 +60,11 @@ const TopBar: React.FC<TopBarProps> = ({ onRefresh, isLoading }) => {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-emerald-500 text-white shadow-sm font-bold text-lg cursor-pointer relative z-20"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMenuOpen(!isMenuOpen);
+            }}
+            className={`flex items-center justify-center w-10 h-10 rounded-full text-white shadow-sm font-bold text-lg cursor-pointer relative z-20 transition-all ${isMenuOpen ? 'ring-4 ring-emerald-500/20 bg-emerald-600' : 'bg-emerald-500'}`}
           >
             {user?.email?.[0].toUpperCase() || 'U'}
           </motion.button>
