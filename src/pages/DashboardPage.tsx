@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import UserMenu from '../components/UserMenu';
 import { showToast } from '../utils/toast';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import GlobalErrorBoundary from '../components/GlobalErrorBoundary'; // Import ErrorBoundary
 
 /**
  * 首页核心目的：一眼看清「今日还能吃多少」，通过视觉压力（剩余热量）引导用户记录行为。
@@ -24,7 +25,7 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { usePersonalizedKcal } from '../hooks/usePersonalizedKcal';
 
 import TopBar from '../components/TopBar';
-import VoiceMode from '../components/VoiceMode';
+import VoiceMode from '../components/VoiceMode'; // Correct Import
 
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -72,8 +73,10 @@ const DashboardPage: React.FC = () => {
     <div className="flex flex-col min-h-screen bg-white dark:bg-slate-950 transition-colors duration-300">
       <TopBar onRefresh={refresh} isLoading={loading} />
       
-      {/* 语音模式浮动按钮 */}
-      <VoiceMode />
+      {/* 语音模式浮动按钮 - 增加错误边界保护 */}
+      <GlobalErrorBoundary>
+        <VoiceMode />
+      </GlobalErrorBoundary>
 
       {!isOnline && (
         <motion.div 
