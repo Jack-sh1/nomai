@@ -3,6 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [ main ] # 当 main 分支有推送时触发
+  workflow_dispatch:   # 允许手动触发
 
 permissions:
   contents: write
@@ -17,7 +18,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
-          version: 8
+          version: 9
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -26,7 +27,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Build
         run: pnpm build
@@ -34,6 +35,10 @@ jobs:
           # 从 GitHub Secrets 中注入环境变量
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+
+      # SPA 404 Fix: 复制 index.html 为 404.html
+      - name: Fix SPA Routing (Copy index.html to 404.html)
+        run: cp dist/index.html dist/404.html
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
