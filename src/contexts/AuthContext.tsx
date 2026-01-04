@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
+import { safeSupabaseFetch } from '../utils/safeSupabaseFetch'; // Import safe fetch
 
 interface AuthContextType {
   session: Session | null;
@@ -36,14 +37,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       log('CheckOnboarding: 🔍 Querying profiles for', targetUser.id);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('is_onboarded')
-        .eq('id', targetUser.id)
-        .maybeSingle();
+      
+      // 使用 safeSupabaseFetch 进行重试保护
+      const { data, error } = await safeSupabaseFetch<{ is_onboarded: boolean }>(async () => {
+        return await supabase
+          .from('profiles')
+          .select('is_onboarded')
+          .eq('id', targetUser.id)
+          .maybeSingle();
+      });
 
       // 处理表不存在或查询错误
       if (error) {
+        if (error.code === 'NETWORK_ERROR') {
+          log('CheckOnboarding: 🌐 Network Error, defaulting to false (offline mode)');
+          // 离线模式下，不阻塞 UI，假设未完成（或可从 localStorage 读取缓存）
+          setIsOnboarded(false); 
+          return false;
+        }
         if (error.code === 'PGRST204' || error.code === 'PGRST205') {
           log('CheckOnboarding: ⚠️ Table "profiles" might not exist or empty. Please run SQL.');
         }
@@ -52,6 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!data) {
         log('CheckOnboarding: 🆕 Profile missing, auto-creating default...');
+        // 插入操作也应该受保护，但这里简化处理
         const { error: insertError } = await supabase
           .from('profiles')
           .insert([{ id: targetUser.id, is_onboarded: false }]);
