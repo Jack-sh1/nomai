@@ -19,10 +19,9 @@ interface VoiceModeProps {
 
 const VoiceMode: React.FC<VoiceModeProps> = () => {
   const [isListening, setIsListening] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   const recognitionRef = useRef<any>(null);
   const navigate = useNavigate();
-  const { remaining, consumed } = usePersonalizedKcal();
+  const { remaining } = usePersonalizedKcal();
   
   // 避免闭包陷阱，使用 ref 存储最新值
   const remainingRef = useRef(remaining);
@@ -48,7 +47,6 @@ const VoiceMode: React.FC<VoiceModeProps> = () => {
 
     recognition.onend = () => {
       setIsListening(false);
-      setIsProcessing(false);
     };
 
     recognition.onerror = (event: any) => {
@@ -95,8 +93,6 @@ const VoiceMode: React.FC<VoiceModeProps> = () => {
 
   // 核心指令处理
   const handleCommand = (text: string) => {
-    setIsProcessing(true);
-
     // 1. 唤醒词检测
     if (text.includes('hi') && (text.includes('nomi') || text.includes('know me') || text.includes('no me'))) {
       triggerWakeUp();
@@ -133,8 +129,6 @@ const VoiceMode: React.FC<VoiceModeProps> = () => {
       // 这里简单处理：不做响应或震动提示失败
       // speak('抱歉，我没听清，请再说一遍'); 
     }
-    
-    setIsProcessing(false);
   };
 
   const triggerWakeUp = () => {

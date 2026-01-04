@@ -77,7 +77,7 @@ export const showToast = {
       success: ValueOrFunction<Renderable, T>;
       error: ValueOrFunction<Renderable, any>;
     },
-    options?: ToastOptions
+    options?: any
   ) => {
     return toast.promise(
       promise,

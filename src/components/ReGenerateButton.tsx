@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RotateCw, Loader2, Sparkles } from 'lucide-react';
+import { RotateCw, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import type { Meal, Dish } from '../types/meal';
 import { MOCK_FOOD_DATABASE } from '../data/mockFood';

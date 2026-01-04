@@ -8,10 +8,9 @@ import {
   ArrowDownRight,
   ChevronRight,
   Flame,
-  LayoutList,
-  Target
+  LayoutList
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 // --- Types ---
 interface DayData {

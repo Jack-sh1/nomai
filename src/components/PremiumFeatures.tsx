@@ -1,8 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Volume2, Mic, Activity, Lock, Check } from 'lucide-react';
-import * as tf from '@tensorflow/tfjs';
-import * as speechCommands from '@tensorflow-models/speech-commands';
 import PremiumModal from './PremiumModal';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -46,7 +44,7 @@ const PremiumFeatures: React.FC = () => {
   };
 
   // 1. Voice Store Logic
-  const playSample = (voiceId: string) => {
+  const playSample = (_voiceId: string) => {
     // Mock sample playback
     const u = new SpeechSynthesisUtterance('NomAi 高级语音测试');
     window.speechSynthesis.speak(u);

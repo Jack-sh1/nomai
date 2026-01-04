@@ -3,17 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Camera, 
   LayoutList, 
-  User, 
-  Flame, 
   TrendingUp, 
   ChevronRight,
-  Plus,
-  RefreshCw,
   WifiOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import UserMenu from '../components/UserMenu';
-import { showToast } from '../utils/toast';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import GlobalErrorBoundary from '../components/GlobalErrorBoundary'; // Import ErrorBoundary
 
@@ -35,7 +29,6 @@ const DashboardPage: React.FC = () => {
     baseTarget, 
     dynamicTarget, 
     remaining, 
-    remainingPercent,
     insight, 
     statusColor,
     loading, 
@@ -204,7 +197,6 @@ const DashboardPage: React.FC = () => {
             {Array.from({ length: 7 }).map((_, i) => {
               const val = history[i] || 0;
               const height = Math.min((val / (baseTarget * 1.5)) * 100, 100);
-              const isToday = i === history.length;
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-2">
                   <motion.div 

@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Globe, Zap, Radio, Smile, Frown, Meh } from 'lucide-react';
+import { Mic, MicOff, Globe, Zap, Smile, Frown, Meh } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { showToast } from '../utils/toast';
 import { usePersonalizedKcal } from '../hooks/usePersonalizedKcal';
 import { useTranslation } from 'react-i18next';
-import * as tf from '@tensorflow/tfjs';
 import * as speechCommands from '@tensorflow-models/speech-commands';
-import axios from 'axios';
 
 // Web Speech API Extension
 declare global {

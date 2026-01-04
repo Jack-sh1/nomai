@@ -12,7 +12,7 @@ import {
   Droplets,
   Loader2
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 /**
  * 页面核心目的：展示 AI 识别食物后的营养成分预览，允许用户微调份量并确认记录。
@@ -36,7 +36,6 @@ const ScanResultPage: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [weight, setWeight] = useState(MOCK_RESULT.servingSize);
-  const [error, setError] = useState<string | null>(null);
 
   // 模拟 AI 识别过程
   useEffect(() => {

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   X, 
-  Camera, 
   Image as ImageIcon, 
   RefreshCcw, 
   AlertCircle, 

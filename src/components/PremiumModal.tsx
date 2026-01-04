@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, CreditCard, ShieldCheck, Crown } from 'lucide-react';
+import { X, CreditCard, ShieldCheck, Crown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { showToast } from '../utils/toast';
 import { useAuth } from '../contexts/AuthContext';
