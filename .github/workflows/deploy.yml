@@ -37,8 +37,10 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
 
       # SPA 404 Fix: 复制 index.html 为 404.html
-      - name: Fix SPA Routing (Copy index.html to 404.html)
-        run: cp dist/index.html dist/404.html
+      - name: Fix SPA Routing & NoJekyll
+        run: |
+          cp dist/index.html dist/404.html
+          touch dist/.nojekyll
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
