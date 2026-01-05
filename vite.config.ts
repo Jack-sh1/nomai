@@ -8,5 +8,5 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
-  base: '/NomAI/',
+  base: '/nomai/',
 })
