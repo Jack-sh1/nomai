@@ -2,8 +2,8 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main ] # 当 main 分支有推送时触发
-  workflow_dispatch:   # 允许手动触发
+    branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -12,7 +12,7 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout 🛎️
         uses: actions/checkout@v4
 
       - name: Install pnpm
@@ -20,30 +20,31 @@ jobs:
         with:
           version: 9
 
-      - name: Set up Node
+      - name: Set up Node.js ⚙️
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
 
-      - name: Install dependencies
+      - name: Install Dependencies 🔧
         run: pnpm install --frozen-lockfile
 
-      - name: Build
+      - name: Build 🏗️
         run: pnpm build
         env:
-          # 从 GitHub Secrets 中注入环境变量
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
 
-      # SPA 404 Fix: 复制 index.html 为 404.html
+      # 🔥 核心修复步骤 🔥
       - name: Fix SPA Routing & NoJekyll
         run: |
+          # 1. 复制 index.html 为 404.html，让 GitHub Pages 在 404 时返回 App 入口
           cp dist/index.html dist/404.html
+          # 2. 创建 .nojekyll 防止忽略下划线文件
           touch dist/.nojekyll
 
-      - name: Deploy to GitHub Pages
+      - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: dist # 打包后的文件夹
-          branch: gh-pages # 部署到的目标分支
+          folder: dist
+          branch: gh-pages
