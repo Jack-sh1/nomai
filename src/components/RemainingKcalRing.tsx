@@ -77,26 +77,34 @@ const RemainingKcalRing: React.FC<RemainingKcalRingProps> = ({
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <motion.span 
-              key={consumed}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="text-5xl font-black text-slate-900 dark:text-white tabular-nums"
-            >
-              {consumed}
-            </motion.span>
+            <div className="flex items-baseline gap-1">
+              <motion.span 
+                key={consumed}
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="text-4xl font-black text-slate-900 dark:text-white tabular-nums"
+              >
+                {consumed}
+              </motion.span>
+              <span className="text-lg font-bold text-slate-400 dark:text-slate-500">
+                / {dynamicTarget}
+              </span>
+            </div>
             <span className="text-slate-400 dark:text-slate-500 font-bold text-xs uppercase mt-1">
-              目标 {dynamicTarget} kcal
+              kcal
             </span>
           </div>
         </div>
 
         <div className="mt-8 text-center w-full">
-          <p className="text-xl font-black text-slate-800 dark:text-slate-100">
-            {remaining >= 0 ? '还剩 ' : '已超 '} 
+          <p className="text-sm font-bold text-slate-500 dark:text-slate-400 mb-1">
+            {remaining >= 0 ? '还剩' : '已超标'}
+          </p>
+          <p className="text-4xl font-black text-slate-800 dark:text-slate-100 tracking-tight">
             <span className={`transition-colors duration-500 ${activeTheme.text}`}>
               {Math.abs(remaining)}
-            </span> kcal
+            </span> 
+            <span className="text-lg ml-1 text-slate-400">kcal</span>
           </p>
           
           {/* AI 智能文案 - 淡入动画 */}

@@ -19,9 +19,9 @@ export const usePersonalizedKcal = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState<KcalStats>({
     consumed: 0,
-    baseTarget: 2100,
-    dynamicTarget: 2100,
-    remaining: 2100,
+    baseTarget: 2450,
+    dynamicTarget: 2450,
+    remaining: 2450,
     remainingPercent: 100,
     exerciseBurned: 0,
     insight: '正在同步你的代谢习惯...',
