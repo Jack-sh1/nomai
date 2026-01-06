@@ -23,6 +23,7 @@ import VoiceMode from '../components/VoiceMode'; // Correct Import
 
 import RemainingKcalRing from '../components/RemainingKcalRing';
 
+import PersonalEasterEggs from '../components/PersonalEasterEggs';
 import BottomActions from '../components/BottomActions';
 
 const DashboardPage: React.FC = () => {
@@ -78,6 +79,9 @@ const DashboardPage: React.FC = () => {
             insight={insight}
             statusColor={statusColor}
           />
+          
+          {/* 个性化彩蛋区 */}
+          <PersonalEasterEggs remaining={remaining} />
 
           {/* 3. 三大宏营养区域 */}
         {/* 这里暂用 mock，后续可从 hook 扩展 */}
