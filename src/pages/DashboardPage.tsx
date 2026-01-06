@@ -23,6 +23,8 @@ import VoiceMode from '../components/VoiceMode'; // Correct Import
 
 import RemainingKcalRing from '../components/RemainingKcalRing';
 
+import BottomActions from '../components/BottomActions';
+
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { isOnline } = useNetworkStatus();
@@ -124,24 +126,7 @@ const DashboardPage: React.FC = () => {
       )}
 
       {/* 5. 底部固定操作区 */}
-      <footer className="fixed bottom-0 left-0 right-0 p-6 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-t border-slate-100 dark:border-slate-800">
-        <div className="flex gap-4 max-w-md mx-auto">
-          <button 
-            onClick={() => navigate('/camera-scan')}
-            className="flex-[2] py-5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-3xl font-black text-lg shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-3 active:scale-95 transition-all"
-          >
-            <Camera className="w-6 h-6" />
-            扫食物
-          </button>
-          <button 
-            onClick={() => navigate('/meal-plan')}
-            className="flex-1 py-5 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 rounded-3xl font-bold text-lg flex items-center justify-center active:scale-95 transition-all"
-          >
-            <LayoutList className="w-6 h-6" />
-          </button>
-        </div>
-        <div className="h-safe pb-2" />
-      </footer>
+      <BottomActions />
     </div>
   );
 };
