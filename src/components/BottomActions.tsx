@@ -49,7 +49,7 @@ const BottomActions: React.FC = () => {
   }, []);
 
   // 长按逻辑
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const LONG_PRESS_DURATION = 800; // 800ms 触发长按 (稍微长一点以免误触)
 
   const handlePointerDown = () => {
