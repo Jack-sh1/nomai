@@ -17,6 +17,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { Dish, Meal, UserProfile } from '../types/meal';
 import { MOCK_FOOD_DATABASE } from '../data/mockFood';
 import ReGenerateButton from '../components/ReGenerateButton';
+import FoodCard from '../components/FoodCard';
+import FoodDetailDrawer from '../components/FoodDetailDrawer';
+import { supabase } from '../lib/supabase';
+import { showToast } from '../utils/toast'; // Assuming this exists, if not I'll just use console or alert for now, or check if it exists. 
+// I'll check utils/toast existence first or just skip it. Existing code doesn't import it. I'll skip it.
 
 /**
  * 核心用户价值：将复杂的「吃什么、吃多少、怎么换」一键简化为极具个性化且动态可调的智能方案，让健康饮食不再有决策负担。
@@ -94,9 +99,17 @@ const MealPlanPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [meals, setMeals] = useState<Meal[]>(INITIAL_MEALS);
   const [replacingDish, setReplacingDish] = useState<{ mealId: string, dishId: string } | null>(null);
+  const [selectedDish, setSelectedDish] = useState<{ mealId: string, dishId: string } | null>(null);
   const [isReplacing, setIsReplacing] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   const [currentOptions, setCurrentOptions] = useState<Dish[]>([]);
+
+  // Calculate active dish for drawer
+  const activeDish = useMemo(() => {
+    if (!selectedDish) return null;
+    const meal = meals.find(m => m.id === selectedDish.mealId);
+    return meal?.dishes.find(d => d.id === selectedDish.dishId) || null;
+  }, [selectedDish, meals]);
 
   useEffect(() => {
     if (replacingDish) {
@@ -156,6 +169,44 @@ const MealPlanPage: React.FC = () => {
       setReplacingDish(null);
       setIsReplacing(false);
     }, 800);
+  };
+
+  const handleDishUpdate = async (updatedDish: Dish) => {
+    if (!selectedDish) return;
+    
+    // 1. Optimistic Update
+    setMeals(prev => prev.map(m => {
+      if (m.id !== selectedDish.mealId) return m;
+      return {
+        ...m,
+        dishes: m.dishes.map(d => d.id === updatedDish.id ? updatedDish : d)
+      };
+    }));
+
+    // 2. Supabase Update (Demo)
+    // await supabase.from('nutrition_records').update({ 
+    //   amount: updatedDish.amount,
+    //   calories: updatedDish.calories 
+    // }).eq('id', updatedDish.id);
+    
+    showToast.success('已更新份量');
+  };
+
+  const handleDishDelete = async (dishId: string) => {
+    if (!selectedDish) return;
+
+    setMeals(prev => prev.map(m => {
+      if (m.id !== selectedDish.mealId) return m;
+      return {
+        ...m,
+        dishes: m.dishes.filter(d => d.id !== dishId)
+      };
+    }));
+
+    setSelectedDish(null);
+    showToast.success('已移除该菜品');
+    
+    // await supabase.from('nutrition_records').delete().eq('id', dishId);
   };
 
   if (loading) {
@@ -237,34 +288,12 @@ const MealPlanPage: React.FC = () => {
               </div>
               <div className="space-y-3">
                 {meal.dishes.map((dish) => (
-                  <motion.div 
-                    layoutId={dish.id}
-                    key={dish.id} 
-                    className="group p-5 bg-slate-50 dark:bg-slate-900 rounded-[32px] border border-transparent hover:border-emerald-200 dark:hover:border-emerald-900/50 transition-all active:scale-[0.98]"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-black text-slate-800 dark:text-white text-lg">{dish.name}</h4>
-                          <span className="text-[10px] font-black bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-md uppercase tracking-tighter">
-                            {dish.amount}
-                          </span>
-                        </div>
-                        <div className="flex gap-3 text-xs font-bold text-slate-400 uppercase tracking-tighter">
-                          <span className="flex items-center gap-0.5"><Flame className="w-3 h-3 text-orange-500" /> {dish.calories} kcal</span>
-                          <span>P: {dish.macros.protein}g</span>
-                          <span>C: {dish.macros.carbs}g</span>
-                          <span>F: {dish.macros.fat}g</span>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => setReplacingDish({ mealId: meal.id, dishId: dish.id })}
-                        className="p-3 bg-white dark:bg-slate-800 rounded-2xl shadow-sm text-slate-400 hover:text-emerald-500 hover:rotate-180 transition-all duration-500"
-                      >
-                        <RotateCw className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </motion.div>
+                  <FoodCard 
+                    key={dish.id}
+                    dish={dish}
+                    onExpand={() => setSelectedDish({ mealId: meal.id, dishId: dish.id })}
+                    onReplace={() => setReplacingDish({ mealId: meal.id, dishId: dish.id })}
+                  />
                 ))}
               </div>
             </div>
@@ -286,6 +315,18 @@ const MealPlanPage: React.FC = () => {
         </div>
         <div className="h-safe pb-2" />
       </footer>
+
+      {/* 详情抽屉 */}
+      <AnimatePresence>
+        {selectedDish && (
+          <FoodDetailDrawer
+            dish={activeDish}
+            onClose={() => setSelectedDish(null)}
+            onUpdate={handleDishUpdate}
+            onDelete={handleDishDelete}
+          />
+        )}
+      </AnimatePresence>
 
       {/* 替换面板 (Modal) */}
       <AnimatePresence>

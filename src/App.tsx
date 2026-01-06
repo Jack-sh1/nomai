@@ -13,6 +13,7 @@ import CameraScanPage from './pages/CameraScanPage';
 import SettingsPage from './pages/SettingsPage';
 import TrendDetailPage from './pages/TrendDetailPage';
 import KcalDetailPage from './pages/KcalDetailPage';
+import MacroDetailPage from './pages/MacroDetailPage';
 
 // 路由保护组件
 const ProtectedRoute: React.FC<{ children: React.ReactNode; requireOnboarding?: boolean }> = ({ 
@@ -70,6 +71,7 @@ function AppRoutes() {
       <Route path="/camera-scan" element={<ProtectedRoute><CameraScanPage /></ProtectedRoute>} />
       <Route path="/trend" element={<ProtectedRoute><TrendDetailPage /></ProtectedRoute>} />
       <Route path="/kcal-detail" element={<ProtectedRoute><KcalDetailPage /></ProtectedRoute>} />
+      <Route path="/macro-detail/:type" element={<ProtectedRoute><MacroDetailPage /></ProtectedRoute>} />
 
       {/* 默认路由 */}
       <Route 

@@ -86,9 +86,27 @@ const DashboardPage: React.FC = () => {
           {/* 3. 三大宏营养区域 */}
         {/* 这里暂用 mock，后续可从 hook 扩展 */}
         <section className="grid grid-cols-1 gap-4">
-          <MacroRow label="蛋白质" current={85} target={150} color="bg-emerald-500" />
-          <MacroRow label="碳水" current={120} target={250} color="bg-amber-500" />
-          <MacroRow label="脂肪" current={42} target={70} color="bg-rose-500" />
+          <MacroRow 
+            label="蛋白质" 
+            current={85} 
+            target={150} 
+            color="bg-emerald-500" 
+            onClick={() => navigate('/macro-detail/protein')}
+          />
+          <MacroRow 
+            label="碳水" 
+            current={120} 
+            target={250} 
+            color="bg-amber-500" 
+            onClick={() => navigate('/macro-detail/carbon')}
+          />
+          <MacroRow 
+            label="脂肪" 
+            current={42} 
+            target={70} 
+            color="bg-rose-500" 
+            onClick={() => navigate('/macro-detail/fat')}
+          />
         </section>
 
         {/* 4. 最近趋势小模块 */}
@@ -136,13 +154,23 @@ const DashboardPage: React.FC = () => {
 };
 
 // 子组件：宏营养行
-const MacroRow: React.FC<{ label: string; current: number; target: number; color: string }> = ({ 
-  label, current, target, color 
+const MacroRow: React.FC<{ 
+  label: string; 
+  current: number; 
+  target: number; 
+  color: string;
+  onClick?: () => void;
+}> = ({ 
+  label, current, target, color, onClick 
 }) => {
   const percent = Math.min(100, (current / target) * 100);
   
   return (
-    <div className="p-5 bg-slate-50 dark:bg-slate-900 rounded-3xl">
+    <motion.div 
+      onClick={onClick}
+      whileTap={{ scale: 0.98 }}
+      className="p-5 bg-slate-50 dark:bg-slate-900 rounded-3xl cursor-pointer active:bg-slate-100 dark:active:bg-slate-800 transition-colors"
+    >
       <div className="flex justify-between items-end mb-3">
         <div>
           <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{label}</span>
@@ -161,7 +189,7 @@ const MacroRow: React.FC<{ label: string; current: number; target: number; color
           className={`h-full ${color} rounded-full`}
         />
       </div>
-    </div>
+    </motion.div>
   );
 };
 
